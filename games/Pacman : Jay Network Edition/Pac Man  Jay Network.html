@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PACMAN : Jay Network edition(10 Levels)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            background-color: #050512;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #00f2fe;
+            overflow: hidden;
+        }
+        #ui-header {
+            width: 100%;
+            max-width: 416px;
+            margin-bottom: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 10px;
+            text-shadow: 0 0 8px rgba(0, 242, 254, 0.6);
+        }
+        .highlight { color: #fff; text-shadow: 0 0 8px #fff; }
+        .score-val { color: #ff007f; text-shadow: 0 0 8px #ff007f; }
+        
+        #game-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #game-canvas {
+            background-color: #020208;
+            border: 4px solid #00f2fe;
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.4);
+            max-width: 95vw;
+            max-height: 50vh;
+            transition: border-color 0.5s, box-shadow 0.5s;
+        }
+
+        /* Neon D-Pad for Mobile Players */
+        #mobile-controls {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            max-width: 220px;
+        }
+        .dpad-row {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            gap: 45px;
+        }
+        .dpad-btn {
+            width: 55px;
+            height: 55px;
+            background: #09091e;
+            border: 2px solid #00f2fe;
+            border-radius: 8px;
+            color: #00f2fe;
+            font-size: 22px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.2);
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+        .dpad-btn:active {
+            background: #ff007f;
+            color: #fff;
+            border-color: #ff007f;
+            box-shadow: 0 0 15px #ff007f;
+        }
+
+        /* Cyberpunk Menu Overlay */
+        #overlay {
+            position: absolute;
+            top: 0; left: 0;
+            background: rgba(2, 2, 8, 0.95);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            text-align: center;
+            border: 4px solid #00f2fe;
+        }
+        h1 { 
+            color: #ff007f; 
+            font-size: 32px; 
+            margin-bottom: 15px; 
+            letter-spacing: 3px;
+            text-shadow: 0 0 15px #ff007f; 
+        }
+        p { 
+            color: #00f2fe; 
+            margin-bottom: 30px; 
+            font-size: 13px; 
+            padding: 0 25px; 
+            line-height: 1.6;
+            text-shadow: 0 0 5px rgba(0, 242, 254, 0.4);
+        }
+        #overlay button {
+            padding: 12px 40px;
+            font-size: 16px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            background: transparent;
+            color: #00f2fe;
+            border: 2px solid #00f2fe;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+            letter-spacing: 2px;
+            transition: all 0.2s;
+        }
+        #overlay button:hover, #overlay button:active {
+            background: #00f2fe;
+            color: #020208;
+            box-shadow: 0 0 25px #00f2fe;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="overlay">
+            <h1 id="title">NEON PAC-MAN</h1>
+            <p id="desc">SYSTEM ONLINE.<br>Hold arrow keys or virtual D-pad to move.<br>Clear all nodes and avoid retro threats.</p>
+            <button id="start-btn" onclick="initGame()">START LEVEL 1</button>
+        </div>
+
+        <div id="ui-header">
+            <div>LV:<span id="level" class="highlight">1</span></div>
+            <div>SCORE:<span id="score" class="score-val">0</span></div>
+            <div>LIVES:<span id="lives" class="highlight">3</span></div>
+        </div>
+
+        <canvas id="game-canvas"></canvas>
+
+        <div id="mobile-controls">
+            <button class="dpad-btn" id="btn-up">▲</button>
+            <div class="dpad-row">
+                <button class="dpad-btn" id="btn-left">◀</button>
+                <button class="dpad-btn" id="btn-right">▶</button>
+            </div>
+            <button class="dpad-btn" id="btn-down">▼</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
+        const levelEl = document.getElementById('level');
+        const overlay = document.getElementById('overlay');
+        const titleEl = document.getElementById('title');
+        const descEl = document.getElementById('desc');
+        const startBtn = document.getElementById('start-btn');
+
+        const tileSize = 32;
+
+        // 3 Map Patterns
+        const mapLayouts = [
+            [ 
+                [1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,0,0,1,0,0,0,0,0,1],
+                [1,0,1,1,0,0,1,0,0,1,1,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,0,1,1,0,1,1,1,0,1,1,0,1],
+                [1,0,0,0,0,0,1,0,0,0,0,0,1],
+                [1,1,1,1,0,2,2,2,0,1,1,1,1],
+                [1,0,0,0,0,0,1,0,0,0,0,0,1],
+                [1,0,1,1,0,1,1,1,0,1,1,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,0,1,1,0,0,1,0,0,1,1,0,1],
+                [1,0,0,0,0,0,1,0,0,0,0,0,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ],
+            [ 
+                [1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,1,0,0,0,1,0,0,0,1],
+                [1,0,1,0,1,0,1,0,1,0,1,0,1],
+                [1,0,1,0,0,0,1,0,0,0,1,0,1],
+                [1,0,1,1,1,0,1,0,1,1,1,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,1,0,1,1,2,2,2,1,1,0,1,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,0,1,1,1,0,1,0,1,1,1,0,1],
+                [1,0,1,0,0,0,1,0,0,0,1,0,1],
+                [1,0,1,0,1,0,1,0,1,0,1,0,1],
+                [1,0,0,0,1,0,0,0,1,0,0,0,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ],
+            [ 
+                [1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,0,1,1,1,0,0,0,1,1,1,0,1],
+                [1,0,1,0,0,0,0,0,0,0,1,0,1],
+                [1,0,1,0,1,1,2,1,1,0,1,0,1],
+                [1,0,0,0,1,2,2,2,1,0,0,0,1],
+                [1,0,1,0,1,1,1,1,1,0,1,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,0,1,1,0,1,1,1,0,1,1,0,1],
+                [1,0,0,1,0,0,0,0,0,1,0,0,1],
+                [1,1,0,1,1,0,1,0,1,1,0,1,1],
+                [1,0,0,0,0,0,1,0,0,0,0,0,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ]
+        ];
+
+        // Neon Retro Theme Palette per Level
+        const neonColors = [
+            '#00f2fe', // Lvl 1: Cyber Blue
+            '#ff007f', // Lvl 2: Acid Pink
+            '#39ff14', // Lvl 3: Neon Green
+            '#9d00ff', // Lvl 4: Vaporwave Purple
+            '#ff6c00', // Lvl 5: Neon Orange
+            '#00ffff', // Lvl 6: Electric Cyan
+            '#ffff00', // Lvl 7: Neon Yellow
+            '#ff003c', // Lvl 8: Cyber Red
+            '#bd00ff', // Lvl 9: Deep Violet
+            '#e50914'  // Lvl 10: Terminal Red
+        ];
+
+        let activeMap = [];
+        let foodMap = [];
+        let score = 0;
+        let lives = 3;
+        let currentLevel = 1;
+        const maxLevels = 10;
+        let gameRunning = false;
+        
+        let mouthAngle = 0.2;
+        let mouthSpeed = 0.02;
+        let isButtonPressed = false; 
+        
+        let pacman = { x: 1, y: 1, dx: 0, dy: 0, nextDx: 0, nextDy: 0, angle: 0, speed: 0.1 };
+        let ghosts = [];
+        
+        // High-saturation neon monster palette
+        const ghostColors = ['#ff0055', '#00f6ff', '#ff00ff', '#ffaa00', '#00ff66', '#7000ff', '#ff5500', '#00ffcc', '#ff00aa', '#3300ff'];
+
+        canvas.width = 13 * tileSize;
+        canvas.height = 13 * tileSize;
+
+        function initGame() {
+            if (currentLevel === 1) {
+                score = 0;
+                lives = 3;
+            }
+            scoreEl.innerText = score;
+            livesEl.innerText = lives;
+            levelEl.innerText = currentLevel;
+            
+            let layoutIndex = (currentLevel - 1) % mapLayouts.length;
+            activeMap = mapLayouts[layoutIndex];
+            foodMap = JSON.parse(JSON.stringify(activeMap));
+
+            // Shift container frame glow color based on level theme
+            let currentThemeColor = neonColors[currentLevel - 1];
+            canvas.style.borderColor = currentThemeColor;
+            canvas.style.boxShadow = `0 0 25px ${currentThemeColor}`;
+            document.body.style.color = currentThemeColor;
+            
+            spawnEntitiesForLevel();
+            overlay.style.display = 'none';
+            gameRunning = true;
+            
+            gameLoop();
+        }
+
+        function spawnEntitiesForLevel() {
+            pacman.x = 1; pacman.y = 1;
+            pacman.dx = 0; pacman.dy = 0;
+            pacman.nextDx = 0; pacman.nextDy = 0;
+            pacman.angle = 0;
+            isButtonPressed = false;
+
+            ghosts = [];
+            for (let i = 0; i < currentLevel; i++) {
+                let startX = (i === 0) ? 11 : 5 + (i % 3);
+                let startY = (i === 0) ? 11 : 5 + Math.floor(i / 3);
+                
+                if(activeMap[startY][startX] === 1) {
+                    startX = 6; startY = 6; 
+                }
+
+                ghosts.push({
+                    x: startX,
+                    y: startY,
+                    dx: i % 2 === 0 ? 1 : -1,
+                    dy: 0,
+                    color: ghostColors[i % ghostColors.length],
+                    speed: 0.05 
+                });
+            }
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+            updateLogic();
+            drawCanvas();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updateLogic() {
+            // Pacman Framework Logic
+            if (Number.isInteger(pacman.x) && Number.isInteger(pacman.y)) {
+                if (foodMap[pacman.y][pacman.x] === 0) {
+                    foodMap[pacman.y][pacman.x] = -1;
+                    score += 10;
+                    scoreEl.innerText = score;
+                    checkVictory();
+                }
+
+                if (isButtonPressed) {
+                    if (activeMap[pacman.y + pacman.nextDy][pacman.x + pacman.nextDx] !== 1) {
+                        pacman.dx = pacman.nextDx;
+                        pacman.dy = pacman.nextDy;
+
+                        if (pacman.dx === 1) pacman.angle = 0;
+                        if (pacman.dx === -1) pacman.angle = Math.PI;
+                        if (pacman.dy === 1) pacman.angle = Math.PI / 2;
+                        if (pacman.dy === -1) pacman.angle = Math.PI * 1.5;
+                    }
+
+                    if (activeMap[pacman.y + pacman.dy][pacman.x + pacman.dx] === 1) {
+                        pacman.dx = 0; pacman.dy = 0;
+                    }
+                } else {
+                    pacman.dx = 0; pacman.dy = 0;
+                }
+            }
+
+            if (pacman.dx !== 0 || pacman.dy !== 0) {
+                pacman.x = Math.round((pacman.x + pacman.dx * pacman.speed) * 10) / 10;
+                pacman.y = Math.round((pacman.y + pacman.dy * pacman.speed) * 10) / 10;
+
+                mouthAngle += mouthSpeed;
+                if (mouthAngle > 0.4 || mouthAngle < 0.05) mouthSpeed = -mouthSpeed;
+            } else {
+                mouthAngle = 0.2;
+            }
+
+            // Grid-Lock Fixed Ghost Matrix Processing
+            ghosts.forEach(g => {
+                let checkX = Math.round(g.x * 100) / 100;
+                let checkY = Math.round(g.y * 100) / 100;
+
+                if (Number.isInteger(checkX) && Number.isInteger(checkY)) {
+                    g.x = Math.round(g.x);
+                    g.y = Math.round(g.y);
+
+                    const directions = [{dx:1, dy:0}, {dx:-1, dy:0}, {dx:0, dy:1}, {dx:0, dy:-1}];
+                    
+                    let validMoves = directions.filter(dir => {
+                        let targetY = g.y + dir.dy;
+                        let targetX = g.x + dir.dx;
+                        
+                        if (targetY < 0 || targetY >= activeMap.length || targetX < 0 || targetX >= activeMap[0].length) return false;
+                        if (activeMap[targetY][targetX] === 1) return false; 
+                        if (dir.dx === -g.dx && dir.dy === -g.dy) return false; 
+                        return true;
+                    });
+
+                    if (validMoves.length === 0) {
+                        g.dx = -g.dx; g.dy = -g.dy;
+                    } else {
+                        let chosen = validMoves[Math.floor(Math.random() * validMoves.length)];
+                        g.dx = chosen.dx;
+                        g.dy = chosen.dy;
+                    }
+                }
+                
+                g.x = Math.round((g.x + g.dx * g.speed) * 100) / 100;
+                g.y = Math.round((g.y + g.dy * g.speed) * 100) / 100;
+
+                let distance = Math.sqrt(Math.pow(pacman.x - g.x, 2) + Math.pow(pacman.y - g.y, 2));
+                if (distance < 0.6) {
+                    lives--;
+                    livesEl.innerText = lives;
+                    if (lives <= 0) {
+                        endGame(false);
+                    } else {
+                        spawnEntitiesForLevel();
+                    }
+                }
+            });
+        }
+
+        function drawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let currentLevelColor = neonColors[currentLevel - 1];
+
+            // Render Glowing Neon Obstacles
+            for (let r = 0; r < activeMap.length; r++) {
+                for (let c = 0; c < activeMap[r].length; c++) {
+                    if (activeMap[r][c] === 1) {
+                        ctx.strokeStyle = currentLevelColor;
+                        ctx.lineWidth = 2;
+                        ctx.shadowBlur = 8;
+                        ctx.shadowColor = currentLevelColor;
+                        ctx.strokeRect(c * tileSize + 4, r * tileSize + 4, tileSize - 8, tileSize - 8);
+                        
+                        // Inner structure block
+                        ctx.fillStyle = "rgba(0, 0, 20, 0.6)";
+                        ctx.fillRect(c * tileSize + 5, r * tileSize + 5, tileSize - 10, tileSize - 10);
+                        
+                        // Clear shadow context configs for speed optimization
+                        ctx.shadowBlur = 0;
+                    } else if (foodMap[r][c] === 0) {
+                        ctx.fillStyle = '#fff';
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = '#fff';
+                        ctx.beginPath();
+                        ctx.arc(c * tileSize + tileSize/2, r * tileSize + tileSize/2, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
+                }
+            }
+
+            // Render Pacman Vector
+            ctx.save();
+            ctx.translate(pacman.x * tileSize + tileSize/2, pacman.y * tileSize + tileSize/2);
+            ctx.rotate(pacman.angle);
+            ctx.fillStyle = '#fff000';
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = '#fff000';
+            ctx.beginPath();
+            ctx.arc(0, 0, tileSize/2 - 2, mouthAngle, Math.PI * 2 - mouthAngle);
+            ctx.lineTo(0, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+
+            // Render Glowing Monsters
+            ghosts.forEach(g => {
+                ctx.fillStyle = g.color;
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = g.color;
+                
+                let gx = g.x * tileSize + 5;
+                let gy = g.y * tileSize + 5;
+                let gw = tileSize - 10;
+
+                ctx.beginPath();
+                ctx.arc(gx + gw/2, gy + gw/2, gw/2, Math.PI, 0, false);
+                ctx.lineTo(gx + gw, gy + gw);
+                ctx.lineTo(gx + gw * 0.75, gy + gw * 0.85);
+                ctx.lineTo(gx + gw * 0.5, gy + gw);
+                ctx.lineTo(gx + gw * 0.25, gy + gw * 0.85);
+                ctx.lineTo(gx, gy + gw);
+                ctx.closePath();
+                ctx.fill();
+
+                // Electric Eyes
+                ctx.fillStyle = '#000';
+                ctx.shadowBlur = 0;
+                ctx.beginPath();
+                ctx.arc(gx + 7, gy + 10, 2.5, 0, Math.PI * 2);
+                ctx.arc(gx + 15, gy + 10, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function checkVictory() {
+            let hasFood = false;
+            for(let r = 0; r < foodMap.length; r++) {
+                if(foodMap[r].includes(0)) { hasFood = true; break; }
+            }
+            
+            if(!hasFood) {
+                gameRunning = false;
+                if (currentLevel < maxLevels) {
+                    currentLevel++;
+                    overlay.style.display = 'flex';
+                    titleEl.innerText = "LEVEL CLEARED";
+                    titleEl.style.color = "#39ff14";
+                    titleEl.style.textShadow = "0 0 15px #39ff14";
+                    descEl.innerHTML = `GRID PURIFIED.<br>Preparing next cyber terminal iteration.<br>Warning: <b>${currentLevel} anomalies detected.</b>`;
+                    startBtn.innerText = "ACCESS LEVEL " + currentLevel;
+                } else {
+                    endGame(true);
+                }
+            }
+        }
+
+        function endGame(isAbsoluteVictory) {
+            gameRunning = false;
+            overlay.style.display = 'flex';
+            if (isAbsoluteVictory) {
+                titleEl.innerText = "CYBER ARCHITECT";
+                titleEl.style.color = "#00f2fe";
+                titleEl.style.textShadow = "0 0 15px #00f2fe";
+                descEl.innerHTML = `MAINFRAME PURGE COMPLETE.<br>You have neutralized all 10 encryption layers.<br>Final Registry Score: <b>${score}</b>`;
+                currentLevel = 1;
+                startBtn.innerText = "REBOOT MATRIX";
+            } else {
+                titleEl.innerText = "CONNECTION LOST";
+                titleEl.style.color = "#ff003c";
+                titleEl.style.textShadow = "0 0 15px #ff003c";
+                descEl.innerHTML = `CRITICAL FAILURE: Pac-unit compromised at level ${currentLevel}.<br>Terminal Core Score: <b>${score}</b>`;
+                currentLevel = 1;
+                startBtn.innerText = "RETRY INTERACTION";
+            }
+        }
+
+        function setDirection(dx, dy) {
+            pacman.nextDx = dx;
+            pacman.nextDy = dy;
+            isButtonPressed = true;
+        }
+
+        function stopDirection() {
+            isButtonPressed = false;
+        }
+
+        const keyState = {};
+        window.addEventListener('keydown', (e) => {
+            if (!gameRunning) return;
+            keyState[e.key] = true;
+
+            if (e.key === 'ArrowUp' || e.key.toLowerCase() === 'w') setDirection(0, -1);
+            if (e.key === 'ArrowDown' || e.key.toLowerCase() === 's') setDirection(0, 1);
+            if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') setDirection(-1, 0);
+            if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') setDirection(1, 0);
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keyState[e.key] = false;
+            if (!keyState['ArrowUp'] && !keyState['ArrowDown'] && !keyState['ArrowLeft'] && !keyState['ArrowRight'] &&
+                !keyState['w'] && !keyState['s'] && !keyState['a'] && !keyState['d']) {
+                stopDirection();
+            }
+        });
+
+        const dpadButtons = [
+            { id: 'btn-up', dx: 0, dy: -1 },
+            { id: 'btn-down', dx: 0, dy: 1 },
+            { id: 'btn-left', dx: -1, dy: 0 },
+            { id: 'btn-right', dx: 1, dy: 0 }
+        ];
+
+        dpadButtons.forEach(btn => {
+            const el = document.getElementById(btn.id);
+            
+            el.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                setDirection(btn.dx, btn.dy);
+            }, { passive: false });
+
+            el.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                stopDirection();
+            }, { passive: false });
+
+            el.addEventListener('mousedown', () => setDirection(btn.dx, btn.dy));
+            el.addEventListener('mouseup', () => stopDirection());
+            el.addEventListener('mouseleave', () => stopDirection());
+        });
+    </script>
+</body>
+</html>
