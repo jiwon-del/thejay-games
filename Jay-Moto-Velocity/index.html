@@ -151,8 +151,9 @@
             box-shadow: 0 0 25px rgba(255, 170, 0, 0.3);
         }
 
+        /* --- PERBAIKAN TOTAL: DI-SET FORCE DISPLAY BIAR PASTI KELIHATAN --- */
         .input-controls-container {
-            display: none;
+            display: grid !important; /* Paksa tombol untuk selalu muncul di semua layar */
             width: 100%;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
@@ -169,18 +170,13 @@
             user-select: none;
             font-family: inherit;
             -webkit-tap-highlight-color: transparent;
+            cursor: pointer;
         }
 
         .nav-btn:active {
             background: var(--tangerine-orange);
             color: var(--slate-dark);
             box-shadow: 0 0 25px var(--tangerine-orange);
-        }
-
-        @media (pointer: coarse) {
-            .input-controls-container {
-                display: grid;
-            }
         }
 
         .summary-card {
@@ -234,34 +230,33 @@
             <button class="action-button" id="init-button">START RIDE</button>
         </div>
 
-        
-    <div id="game-screen" class="screen">
-         <h1>MOTO VELOCITY</h1>
-         <p class="tagline">// RACING IN PROGRESS</p>
-         <div class="telemetry-bar">
-              <div>KM COVERED: <span id="live-score">0</span></div>
-             <div>RECORD: <span id="record-score">0</span></div>
+        <div id="game-screen" class="screen">
+            <h1>MOTO VELOCITY</h1>
+            <p class="tagline">// RACING IN PROGRESS</p>
+            <div class="telemetry-bar">
+                <div>KM COVERED: <span id="live-score">0</span></div>
+                <div>RECORD: <span id="record-score">0</span></div>
             </div>
             
             <canvas id="raceCanvas" width="360" height="420"></canvas>
             
-            <div class="input-controls-container">
+            <!-- Tombol kontrol dipastikan nampak tepat di bawah canvas setelah klik START -->
+            <div class="input-controls-container" id="mobileControls">
                 <button class="nav-btn" id="steerLeftBtn">&lt;&lt; STEER LEFT</button>
                 <button class="nav-btn" id="steerRightBtn">STEER RIGHT &gt;&gt;</button>
             </div>
         </div>
 
-        
-    <div id="game-over-screen" class="screen">
-         <h1>RACE TERMINATED</h1>
+        <div id="game-over-screen" class="screen">
+            <h1>RACE TERMINATED</h1>
             <div class="summary-card">
                 <h2>BIKE WRECKED</h2>
                 <p>Severe structural collision detected with another rider.</p>
                 <div style="font-size: 1.4rem;">TOTAL DISTANCE: <span id="final-score" style="color: var(--emerald-green); font-weight: bold;">0</span> KM</div>
                 <div id="record-break-msg" class="high-score-alert">★ NEW TRACK RECORD REGISTERED! ★</div>
-          </div>
+            </div>
             <button class="action-button" id="reboot-button">RETRY CIRCUIT</button>
-      </div>
+        </div>
     </div>
 
     <script>
@@ -278,7 +273,6 @@
         let trackRecord = localStorage.getItem('jayMotoDuelRecord') || 0;
         recordScoreElement.textContent = trackRecord;
 
-        
         let playerX = canvas.width / 2;
         const playerY = canvas.height - 75;
         const bikeWidth = 22;
@@ -289,7 +283,6 @@
         let isMovingRight = false;
         const handlingSpeed = 4.6;
 
-        
         let trafficVehicles = [];
         let circuitVelocity = 4.5;
         let trafficSpawnTimer = 0;
@@ -316,17 +309,19 @@
             const leftControl = document.getElementById('steerLeftBtn');
             const rightControl = document.getElementById('steerRightBtn');
 
+            // Touch Events (Untuk HP)
             leftControl.addEventListener('touchstart', (e) => { e.preventDefault(); isMovingLeft = true; }, {passive: false});
             leftControl.addEventListener('touchend', (e) => { e.preventDefault(); isMovingLeft = false; }, {passive: false});
             rightControl.addEventListener('touchstart', (e) => { e.preventDefault(); isMovingRight = true; }, {passive: false});
             rightControl.addEventListener('touchend', (e) => { e.preventDefault(); isMovingRight = false; }, {passive: false});
 
-            leftControl.addEventListener('mousedown', () => { isMovingLeft = true; });
-            leftControl.addEventListener('mouseup', () => { isMovingLeft = false; });
-            leftControl.addEventListener('mouseleave', () => { isMovingLeft = false; });
-            rightControl.addEventListener('mousedown', () => { isMovingRight = true; });
-            rightControl.addEventListener('mouseup', () => { isMovingRight = false; });
-            rightControl.addEventListener('mouseleave', () => { isMovingRight = false; });
+            // Mouse Events (Untuk PC / Simulator Dev)
+            leftControl.addEventListener('mousedown', (e) => { e.preventDefault(); isMovingLeft = true; });
+            leftControl.addEventListener('mouseup', (e) => { e.preventDefault(); isMovingLeft = false; });
+            leftControl.addEventListener('mouseleave', (e) => { e.preventDefault(); isMovingLeft = false; });
+            rightControl.addEventListener('mousedown', (e) => { e.preventDefault(); isMovingRight = true; });
+            rightControl.addEventListener('mouseup', (e) => { e.preventDefault(); isMovingRight = false; });
+            rightControl.addEventListener('mouseleave', (e) => { e.preventDefault(); isMovingRight = false; });
         }
 
         function handleKeyDown(e) {
@@ -355,15 +350,15 @@
             }
         }
 
-     function emitSynthSoundFX(soundProfile) {
-          if (!audioContextInstance) return;
-         try {
-              let osc = audioContextInstance.createOscillator();
-             let soundGain = audioContextInstance.createGain();
-             osc.connect(soundGain);
-             soundGain.connect(audioContextInstance.destination);
+        function emitSynthSoundFX(soundProfile) {
+            if (!audioContextInstance) return;
+            try {
+                let osc = audioContextInstance.createOscillator();
+                let soundGain = audioContextInstance.createGain();
+                osc.connect(soundGain);
+                soundGain.connect(audioContextInstance.destination);
 
-             if (soundProfile === 'steer') {
+                if (soundProfile === 'steer') {
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(320, audioContextInstance.currentTime);
                     osc.frequency.linearRampToValueAtTime(460, audioContextInstance.currentTime + 0.05);
@@ -452,27 +447,23 @@
             }
         }
 
-        
-     function renderPlayerMotorcycle() {
-          ctx.save();
-          ctx.translate(playerX, playerY + bikeHeight / 2);
-           ctx.rotate(leanAngle);
+        function renderPlayerMotorcycle() {
+            ctx.save();
+            ctx.translate(playerX, playerY + bikeHeight / 2);
+            ctx.rotate(leanAngle);
 
             ctx.shadowBlur = 20;
             ctx.shadowColor = "#00ff88";
 
-            
             ctx.fillStyle = "#00ff88";
             ctx.beginPath();
             ctx.roundRect(-bikeWidth / 2, -bikeHeight / 2, bikeWidth, bikeHeight, [6, 6, 4, 4]);
             ctx.fill();
 
-            
             ctx.fillStyle = "#020205";
             ctx.fillRect(-3, -bikeHeight / 2 - 2, 6, 5); 
             ctx.fillRect(-4, bikeHeight / 2 - 7, 8, 9); 
 
-            
             ctx.shadowBlur = 0; 
             ctx.fillStyle = "#111122";
             ctx.beginPath();
@@ -482,7 +473,7 @@
             ctx.fillStyle = "#00f0ff";
             ctx.fillRect(-3, -3, 6, 2);
 
-            ctx.fillStyle = "#ffffff";
+            ctx.ffffff = "#ffffff";
             ctx.font = "900 12px 'Arial', sans-serif";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
@@ -491,7 +482,7 @@
             ctx.restore();
         }
 
-     function designTrafficPattern() {
+        function designTrafficPattern() {
             trafficSpawnTimer++;
             if (trafficSpawnTimer >= spawnThreshold) {
                 trafficSpawnTimer = 0;
@@ -543,7 +534,7 @@
 
                 if (enemyBike.y > canvas.height) {
                     trafficVehicles.splice(idx, 1);
-                    distanceScore += 15; // Point bertambah karena salip motor lebih gesit
+                    distanceScore += 15; 
                     liveScoreElement.textContent = distanceScore;
                     continue;
                 }
@@ -580,7 +571,7 @@
             mainGameLoopId = requestAnimationFrame(executeRenderCycle);
         }
 
-    function terminateCircuitSequence() {
+        function terminateCircuitSequence() {
             const finalScoreDisplay = document.getElementById('final-score');
             const newRecordAlert = document.getElementById('record-break-msg');
             
@@ -596,6 +587,6 @@
             
             swapActiveScreen(gameOverScreen.classList);
         }
- </script>
+    </script>
 </body>
 </html>
