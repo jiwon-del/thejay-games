@@ -24,7 +24,6 @@
             overflow: hidden;
         }
 
-        
         .game-outer-frame {
             padding: 10px;
             background: linear-gradient(135deg, #9d4edd, #00b4d8);
@@ -41,7 +40,6 @@
             overflow: hidden;
             position: relative;
             background-color: #12052d;
-            /* Menggunakan aspek rasio fleksibel agar pas di layar HP */
             width: 800px;
             height: 600px;
             max-width: 100%;
@@ -52,9 +50,9 @@
             background: radial-gradient(circle, #1a0933 0%, #0b031a 100%);
             width: 100%;
             height: 100%;
+            cursor: none; /* Menyembunyikan kursor asli agar blade terasa menyatu */
         }
 
-        
         .overlay {
             position: absolute;
             top: 0;
@@ -70,6 +68,7 @@
             z-index: 10;
             text-align: center;
             padding: 20px;
+            cursor: default;
         }
 
         .hidden {
@@ -98,6 +97,7 @@
             padding: 12px 20px;
             margin-bottom: 20px;
             max-width: 90%;
+            text-align: left;
         }
 
         .instructions p {
@@ -131,7 +131,6 @@
             font-weight: bold;
         }
 
-        
         @media (max-width: 600px) {
             h1 { font-size: 1.8rem; }
             h2 { font-size: 1.6rem; }
@@ -150,10 +149,10 @@
                 <p style="color: #00b4d8; margin-bottom: 15px; font-size: 0.9rem;">Ultimate Blade Storm</p>
                 
                 <div class="instructions">
-                    <p><strong>[ HOW TO PLAY ]</strong></p>
-                    <p>• <b>PC:</b> Use <b>W, A, S, D</b> or <b>Arrow Keys</b> to move.</p>
-                    <p>• <b>MOBILE:</b> Touch & Drag the <b>On-Screen Joystick</b>.</p>
-                    <p>• Protect your center body from enemies!</p>
+                    <p style="text-align: center; margin-bottom: 10px;"><strong>[ HOW TO PLAY MANUAL ]</strong></p>
+                    <p>• <b>PC Controls:</b> Move your <b>Mouse Cursor</b> across the screen. The center core of the spinning blade is fully pinned and will directly follow your cursor position.</p>
+                    <p>• <b>Mobile Controls:</b> <b>Touch and Drag</b> anywhere inside the canvas area to map the blade directly under your tracking finger.</p>
+                    <p>• <b>Objective:</b> Use the revolving outer blades to crush incoming enemies. Protect the blue center body from getting hit to stay alive!</p>
                 </div>
                 
                 <button class="btn" id="startBtn">Start Game</button>
@@ -177,7 +176,6 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        
         const startScreen = document.getElementById('startScreen');
         const gameOverScreen = document.getElementById('gameOverScreen');
         const startBtn = document.getElementById('startBtn');
@@ -185,28 +183,13 @@
         const finalScoreTxt = document.getElementById('finalScore');
         const highScoreTxt = document.getElementById('highScore');
 
-        
         let gameActive = false;
         let score = 0;
         let localHighScore = localStorage.getItem('blade_highScore') || 0;
 
-        
-        const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+        // Menyimpan posisi target kursor / pointer sentuhan
+        const pointer = { x: 400, y: 300 };
 
-        
-        const joystick = {
-            active: false,
-            startX: 0,
-            startY: 0,
-            currentX: 0,
-            currentY: 0,
-            touchId: null,
-            maxRadius: 50,  // Batas maksimal seretan analog
-            moveX: 0,       // Nilai -1 sampai 1 untuk pergerakan horizontal
-            moveY: 0        // Nilai -1 sampai 1 untuk pergerakan vertikal
-        };
-
-        
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         function playSound(type) {
@@ -246,7 +229,6 @@
                 this.x = x;
                 this.y = y;
                 this.radius = 16;
-                this.speed = 4.5;
                 this.baseAngle = 0;
                 this.bladeCount = 5;
                 this.bladeDistance = 60;
@@ -255,19 +237,11 @@
             }
 
             update() {
-                // 1. Pergerakan PC (Keyboard)
-                if (keys.w || keys.ArrowUp) this.y -= this.speed;
-                if (keys.s || keys.ArrowDown) this.y += this.speed;
-                if (keys.a || keys.ArrowLeft) this.x -= this.speed;
-                if (keys.d || keys.ArrowRight) this.x += this.speed;
+                // PIN MECHANISM: Mengunci posisi objek langsung ke koordinat kursor pointer
+                this.x = pointer.x;
+                this.y = pointer.y;
 
-                // 2. Pergerakan HP (Joystick)
-                if (joystick.active) {
-                    this.x += joystick.moveX * this.speed;
-                    this.y += joystick.moveY * this.speed;
-                }
-
-                // Batasan Layar
+                // Batasan Layar agar tidak keluar frame arena game
                 if (this.x < this.radius) this.x = this.radius;
                 if (this.x > canvas.width - this.radius) this.x = canvas.width - this.radius;
                 if (this.y < this.radius) this.y = this.radius;
@@ -407,11 +381,12 @@
 
         function initGame() {
             player = new Player(canvas.width / 2, canvas.height / 2);
+            pointer.x = canvas.width / 2;
+            pointer.y = canvas.height / 2;
             enemies = [];
             particles = [];
             score = 0;
             gameActive = true;
-            joystick.active = false;
 
             clearInterval(spawnInterval);
             spawnInterval = setInterval(() => {
@@ -434,30 +409,6 @@
             finalScoreTxt.innerText = score;
             highScoreTxt.innerText = localHighScore;
             gameOverScreen.classList.remove('hidden');
-        }
-
-        // FUNGSI MENGGAMBAR JOYSTICK DI LAYAR HP
-        function drawJoystick() {
-            if (!joystick.active) return;
-
-            // Base Luar Analog (Transparan Abu-abu)
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(joystick.startX, joystick.startY, joystick.maxRadius, 0, Math.PI * 2);
-            ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
-            ctx.strokeStyle = "rgba(0, 180, 216, 0.4)";
-            ctx.lineWidth = 3;
-            ctx.fill();
-            ctx.stroke();
-
-            // Tombol Tengah Analog (Biru Muda Neon)
-            ctx.beginPath();
-            ctx.arc(joystick.currentX, joystick.currentY, 22, 0, Math.PI * 2);
-            ctx.fillStyle = "#00b4d8";
-            ctx.shadowColor = "#00b4d8";
-            ctx.shadowBlur = 10;
-            ctx.fill();
-            ctx.restore();
         }
 
         function animate() {
@@ -507,9 +458,6 @@
                     else particles[i].draw();
                 }
 
-                // Render Joystick di atas game canvas jika aktif
-                drawJoystick();
-
                 // Score HUD
                 ctx.fillStyle = '#ffffff';
                 ctx.shadowColor = '#00b4d8';
@@ -523,85 +471,35 @@
             requestAnimationFrame(animate);
         }
 
-        // EVENT LISTENERS PC (Keyboard)
-        window.addEventListener('keydown', (e) => { if(e.key in keys) keys[e.key] = true; });
-        window.addEventListener('keyup', (e) => { if(e.key in keys) keys[e.key] = false; });
-
-        // EVENT LISTENERS MOBILE (Touch System untuk Joystick)
-        function getCanvasTouchPos(touch) {
+        // FUNGSI KALKULASI RELATIF POSISI DI CANVAS RESPONSIVE
+        function updatePointerPos(clientX, clientY) {
             const rect = canvas.getBoundingClientRect();
-            // Kalkulasi rasio ukuran canvas asli (800x600) terhadap ukuran layar HP saat itu
-            return {
-                x: (touch.clientX - rect.left) * (canvas.width / rect.width),
-                y: (touch.clientY - rect.top) * (canvas.height / rect.height)
-            };
+            // Memetakan posisi kursor kordinat layar ke dimensi internal canvas (800x600)
+            pointer.x = (clientX - rect.left) * (canvas.width / rect.width);
+            pointer.y = (clientY - rect.top) * (canvas.height / rect.height);
         }
 
+        // EVENT MOUSE UNTUK PC (CURSOR-PINNED SYSTEM)
+        canvas.addEventListener('mousemove', (e) => {
+            if (!gameActive) return;
+            updatePointerPos(e.clientX, e.clientY);
+        });
+
+        // EVENT TOUCH UNTUK DEVICE MOBILE
         canvas.addEventListener('touchstart', (e) => {
             if (!gameActive) return;
             e.preventDefault();
-            
-            // Mengambil touch pertama yang masuk ke layar game
-            const touch = e.changedTouches[0];
-            const pos = getCanvasTouchPos(touch);
-
-            // Kita munculkan joystick di area mana saja asal di sebelah kiri layar
-            if (pos.x < canvas.width / 2) {
-                joystick.active = true;
-                joystick.touchId = touch.identifier;
-                joystick.startX = pos.x;
-                joystick.startY = pos.y;
-                joystick.currentX = pos.x;
-                joystick.currentY = pos.y;
-                joystick.moveX = 0;
-                joystick.moveY = 0;
-            }
-        });
+            const touch = e.touches[0];
+            updatePointerPos(touch.clientX, touch.clientY);
+        }, { passive: false });
 
         canvas.addEventListener('touchmove', (e) => {
-            if (!joystick.active) return;
+            if (!gameActive) return;
             e.preventDefault();
+            const touch = e.touches[0];
+            updatePointerPos(touch.clientX, touch.clientY);
+        }, { passive: false });
 
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                if (touch.identifier === joystick.touchId) {
-                    const pos = getCanvasTouchPos(touch);
-                    
-                    let dx = pos.x - joystick.startX;
-                    let dy = pos.y - joystick.startY;
-                    let distance = Math.hypot(dx, dy);
-
-                    if (distance <= joystick.maxRadius) {
-                        joystick.currentX = pos.x;
-                        joystick.currentY = pos.y;
-                    } else {
-                        // Jika ditarik kejauhan, batasi posisi tombol analog di pinggir batas maxRadius
-                        joystick.currentX = joystick.startX + (dx / distance) * joystick.maxRadius;
-                        joystick.currentY = joystick.startY + (dy / distance) * joystick.maxRadius;
-                        distance = joystick.maxRadius;
-                    }
-
-                    
-                    joystick.moveX = dx / joystick.maxRadius;
-                    joystick.moveY = dy / joystick.maxRadius;
-                }
-            }
-        });
-
-        canvas.addEventListener('touchend', (e) => {
-            if (!joystick.active) return;
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                if (touch.identifier === joystick.touchId) {
-                    joystick.active = false;
-                    joystick.touchId = null;
-                    joystick.moveX = 0;
-                    joystick.moveY = 0;
-                }
-            }
-        });
-
-        
         startBtn.addEventListener('click', () => { startScreen.classList.add('hidden'); playSound('start'); initGame(); });
         restartBtn.addEventListener('click', () => { gameOverScreen.classList.add('hidden'); playSound('start'); initGame(); });
 
