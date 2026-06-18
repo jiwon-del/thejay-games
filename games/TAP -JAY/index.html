@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TAP JAY // ULTIMATE LEVEL EDITION</title>
+    <style>
+        :root {
+            --cyan: #00f0ff;
+            --cyan-glow: rgba(0, 240, 255, 0.4);
+            --purple: #bd00ff;
+            --purple-glow: rgba(189, 0, 255, 0.4);
+            --green: #00ff66;
+            --green-glow: rgba(0, 255, 102, 0.4);
+            --virus: #ff0055;
+            --virus-glow: rgba(255, 0, 85, 0.6);
+            --gold: #ffd700;
+            --gold-glow: rgba(255, 215, 0, 0.6);
+            --bg-gradient: radial-gradient(circle at center, #0c0f2b 0%, #03040c 100%);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #game-canvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 420px;
+            height: 100vh;
+            position: relative;
+            z-index: 2;
+            background: rgba(8, 10, 28, 0.65);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-left: 1px solid rgba(255,255,255,0.05);
+            border-right: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            transition: transform 0.1s ease;
+        }
+
+        @media (min-width: 450px) {
+            #game-container {
+                height: 90vh;
+                max-height: 850px;
+                border-radius: 24px;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
+            }
+        }
+
+        /* Screens Layout */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(8, 10, 28, 0.98);
+            border-radius: inherit;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 25px 20px;
+            text-align: center;
+            z-index: 100;
+            overflow-y: auto;
+        }
+
+        .hidden { display: none !important; }
+        .brand-zone { margin-bottom: 15px; }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            color: #fff;
+            text-shadow: 0 5px 20px var(--cyan-glow);
+        }
+
+        .subtitle {
+            color: var(--purple);
+            font-size: 0.75rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-top: 5px;
+        }
+
+        /* INFOGRAPHICS MANUAL */
+        .manual-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .section-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: rgba(255, 255, 255, 0.4);
+            font-weight: 700;
+            margin-bottom: 2px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 4px;
+        }
+
+        .manual-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 12px 14px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .manual-icon {
+            font-size: 1.5rem;
+            min-width: 32px;
+            text-align: center;
+        }
+
+        .manual-text h3 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 2px;
+        }
+
+        .manual-text p {
+            font-size: 0.75rem;
+            color: #b3b8d4;
+            line-height: 1.4;
+        }
+
+        /* Color Legend Dot Indicators */
+        .dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        .dot-cyan { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+        .dot-purple { background: var(--purple); box-shadow: 0 0 8px var(--purple); }
+        .dot-green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+        .dot-red { background: var(--virus); box-shadow: 0 0 8px var(--virus); }
+        .dot-gold { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+
+        .cyber-btn {
+            background: linear-gradient(135deg, var(--cyan) 0%, #00a8ff 100%);
+            color: #030511;
+            border: none;
+            width: 100%;
+            padding: 16px 0;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: pointer;
+            text-transform: uppercase;
+            border-radius: 14px;
+            box-shadow: 0 8px 25px var(--cyan-glow);
+        }
+        .cyber-btn:active { transform: scale(0.98); }
+
+        /* HUD Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 12px 20px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .hud-title { color: rgba(255,255,255,0.3); font-size: 0.6rem; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;}
+        .hud-digit { font-size: 1.4rem; font-weight: 800; color: #ffffff; }
+
+        /* Central Arena & Reactor Core */
+        #arena {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* Shield Bar Indicator */
+        #shield-container {
+            width: 120px;
+            height: 6px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow: hidden;
+        }
+        #shield-fill {
+            width: 100%; height: 100%;
+            background: var(--green);
+            box-shadow: 0 0 10px var(--green-glow);
+            transition: all 0.3s ease;
+        }
+
+        #reactor-core {
+            width: 170px;
+            height: 170px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.12s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            z-index: 10;
+            border: 4px solid var(--cyan);
+        }
+        #reactor-core:active { transform: scale(0.88); }
+
+        #core-status {
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        /* LEVEL SYSTEM STYLES */
+        .lv-1-cyan {
+            background: radial-gradient(circle, rgba(0,240,255,0.2) 0%, rgba(8,10,28,0.8) 70%);
+            border-color: var(--cyan) !important;
+            box-shadow: 0 0 30px var(--cyan-glow), inset 0 0 20px var(--cyan-glow);
+        }
+        .lv-2-purple {
+            background: radial-gradient(circle, rgba(189,0,255,0.2) 0%, rgba(8,10,28,0.8) 70%);
+            border-color: var(--purple) !important;
+            box-shadow: 0 0 30px var(--purple-glow), inset 0 0 20px var(--purple-glow);
+        }
+        .lv-3-green {
+            background: radial-gradient(circle, rgba(0,255,102,0.2) 0%, rgba(8,10,28,0.8) 70%);
+            border-color: var(--green) !important;
+            box-shadow: 0 0 30px var(--green-glow), inset 0 0 20px var(--green-glow);
+        }
+
+        /* Modifier States */
+        .state-overload {
+            border-color: var(--virus) !important;
+            box-shadow: 0 0 50px var(--virus-glow), inset 0 0 25px var(--virus-glow) !important;
+            animation: coreGlitch 0.15s infinite alternate;
+        }
+        .state-fever {
+            border-color: var(--gold) !important;
+            box-shadow: 0 0 60px var(--gold-glow), inset 0 0 30px var(--gold-glow) !important;
+            animation: corePulse 0.25s infinite alternate;
+        }
+        .state-glitch {
+            border-color: #ffffff !important;
+            box-shadow: 0 0 60px #fff, inset 0 0 30px #fff !important;
+            transform: scale(0.85);
+        }
+
+        @keyframes coreGlitch {
+            0% { transform: translate(2px, 1px) scale(1); }
+            100% { transform: translate(-1px, -2px) scale(1.04); }
+        }
+        @keyframes corePulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.06); }
+        }
+
+        /* Floating Text Engine */
+        .floating-text {
+            position: absolute;
+            font-weight: 900;
+            pointer-events: none;
+            z-index: 100;
+            text-shadow: 0 0 12px currentColor;
+            animation: jayFloat 0.65s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+        }
+
+        @keyframes jayFloat {
+            0% { opacity: 1; transform: translateY(0) scale(0.6) rotate(-15deg); }
+            50% { transform: translateY(-35px) scale(1.3) rotate(12deg); }
+            100% { opacity: 0; transform: translateY(-85px) scale(0.7) rotate(0deg); }
+        }
+
+        #combo-counter-badge {
+            background: rgba(189, 0, 255, 0.2);
+            border: 1px solid var(--purple);
+            color: #fff;
+            padding: 2px 8px;
+            font-size: 0.65rem;
+            border-radius: 20px;
+            font-weight: 800;
+            margin-top: 4px;
+            display: inline-block;
+        }
+
+        /* Power Container */
+        #power-tube {
+            width: 100%;
+            height: 22px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 8px;
+            position: relative;
+        }
+        #power-fill {
+            width: 0%; height: 100%;
+            background: linear-gradient(90deg, var(--cyan), var(--purple));
+            box-shadow: 0 0 15px var(--cyan-glow);
+            transition: width 0.08s ease;
+        }
+
+        #alert-console {
+            text-align: center; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; color: #525975; text-transform: uppercase; min-height: 18px; margin-bottom: 10px;
+        }
+
+        .shake { animation: screenShake 0.15s linear; }
+        @keyframes screenShake {
+            0%, 100% { transform: translate(0, 0); }
+            20% { transform: translate(-6px, 4px); }
+            40% { transform: translate(6px, -4px); }
+            60% { transform: translate(-4px, -5px); }
+            80% { transform: translate(5px, 3px); }
+        }
+
+        footer { text-align: center; font-size: 0.55rem; color: rgba(255,255,255,0.1); letter-spacing: 1px;}
+    </style>
+</head>
+<body>
+
+    <canvas id="game-canvas"></canvas>
+
+    <div id="game-container">
+        <!-- WELCOME SCREEN -->
+        <div id="welcome-screen" class="screen">
+            <div class="brand-zone">
+                <h1>TAP JAY</h1>
+                <div class="subtitle">Ultimate Level Edition</div>
+            </div>
+            
+            <div class="manual-container">
+                <div class="section-title">Core Objective</div>
+                
+                <div class="manual-card">
+                    <div class="manual-icon">⚡</div>
+                    <div class="manual-text">
+                        <h3>Charge to 100%</h3>
+                        <p>Tap the center Core repeatedly to fill the bottom Energy Tube. Fill it to advance your Level.</p>
+                    </div>
+                </div>
+
+                <div class="manual-card">
+                    <div class="manual-icon">⏳</div>
+                    <div class="manual-text">
+                        <h3>Prevent Energy Drain</h3>
+                        <p>Energy continuously leaks over time! Tap faster to overcome the constant drain rate.</p>
+                    </div>
+                </div>
+
+                <div class="section-title">Core Status Signals</div>
+
+                <div class="manual-card">
+                    <div class="manual-text" style="width: 100%;">
+                        <p style="margin-bottom: 6px;"><span class="dot dot-cyan"></span><span class="dot dot-purple"></span><span class="dot dot-green"></span><strong>Levels 1-3:</strong> Base states. Difficulty and drain acceleration speed up with each level.</p>
+                        <p style="margin-bottom: 6px;"><span class="dot dot-red"></span><strong>Overload (STOP!):</strong> When red, DO NOT TAP. Tapping destroys your system instantly.</p>
+                        <p style="margin-bottom: 6px;"><span class="dot dot-gold"></span><strong>Fever Mode:</strong> Triggers via long streaks. Draining pauses; taps give +40 pts.</p>
+                        <p><span class="dot" style="background:#fff; box-shadow: 0 0 8px #fff;"></span><strong>Golden Glitch:</strong> Flashes for 0.7s. Catch and hit it instantly for <strong>+100 pts</strong>!</p>
+                    </div>
+                </div>
+
+                <div class="section-title">Defenses</div>
+
+                <div class="manual-card">
+                    <div class="manual-icon">🛡️</div>
+                    <div class="manual-text">
+                        <h3>Emergency Shield Layer</h3>
+                        <p>Grants you exactly 1 mistake protection if you accidentally click a Red Overload core.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-container">
+                <button class="cyber-btn" onclick="startGame()">Initialize Matrix</button>
+            </div>
+        </div>
+
+        <!-- GAMEOVER SCREEN -->
+        <div id="gameover-screen" class="screen hidden">
+            <div class="brand-zone">
+                <h1 id="gameover-title" style="color: var(--virus);">CORE DESTROYED</h1>
+                <div class="subtitle" id="gameover-subtitle">Thermal barrier containment breakdown</div>
+            </div>
+            
+            <div style="margin: auto 0;">
+                <span class="hud-title">Final Secure Score</span>
+                <span id="final-score" style="font-size: 3.8rem; font-weight: 800; color: #fff; display:block;">0</span>
+            </div>
+
+            <div class="btn-container">
+                <button class="cyber-btn" id="rematch-btn" onclick="startGame()">Reboot Matrix</button>
+            </div>
+        </div>
+
+        <!-- DASHBOARD HUD -->
+        <header>
+            <div>
+                <span class="hud-title">Harvested Points</span>
+                <span id="score-val" class="hud-digit">0</span>
+            </div>
+            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
+                <span class="hud-title">Current Matrix Level</span>
+                <div id="level-val" class="hud-digit" style="color: var(--cyan);">LEVEL 1</div>
+                <div id="combo-counter-badge">STREAK: 0</div>
+            </div>
+        </header>
+
+        <!-- GAMEPLAY ARENA -->
+        <div id="arena">
+            <!-- Shield Bar Indicator -->
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <span class="hud-title" style="font-size:0.5rem; margin-bottom:4px;">Emergency Shield Matrix</span>
+                <div id="shield-container"><div id="shield-fill"></div></div>
+            </div>
+
+            <div id="reactor-core" class="lv-1-cyan">
+                <div id="core-pct" style="font-size: 2.2rem; font-weight: 900;">0%</div>
+                <div id="core-status">TAP JAY</div>
+            </div>
+        </div>
+
+        <!-- STATUS FOOTNOTES -->
+        <div>
+            <div id="power-tube"><div id="power-fill"></div></div>
+            <div id="alert-console">SYSTEM STATE: STANDBY</div>
+        </div>
+
+        <footer>TAP JAY ENTERPRISE ARCADE SYSTEM v7.0</footer>
+    </div>
+
+    <script>
+        let score = 0;
+        let currentLevel = 1;
+        let powerLevel = 0;
+        let hitStreak = 0;
+        let hasShieldActive = true;
+        let isGameActive = false;
+        
+        let currentCoreModifier = 'charge'; 
+        let drainLoopInterval;
+        let changeStateTimeout;
+        let specialStateTimeout;
+
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        let sparks = [];
+
+        const core = document.getElementById('reactor-core');
+        const corePctText = document.getElementById('core-pct');
+        const coreStatusText = document.getElementById('core-status');
+        const powerFill = document.getElementById('power-fill');
+        const scoreText = document.getElementById('score-val');
+        const levelText = document.getElementById('level-val');
+        const streakBadge = document.getElementById('combo-counter-badge');
+        const shieldBar = document.getElementById('shield-fill');
+        const consoleAlert = document.getElementById('alert-console');
+        const container = document.getElementById('game-container');
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSynthBeep(freq, type, duration, volume = 0.08) {
+            try {
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + duration);
+            } catch(e){}
+        }
+
+        function startGame() {
+            score = 0;
+            currentLevel = 1;
+            powerLevel = 0;
+            hitStreak = 0;
+            hasShieldActive = true;
+            isGameActive = true;
+            currentCoreModifier = 'charge';
+            
+            scoreText.textContent = score;
+            levelText.textContent = "LEVEL 1";
+            levelText.style.color = "var(--cyan)";
+            powerFill.style.width = '0%';
+            corePctText.textContent = '0%';
+            streakBadge.textContent = "STREAK: 0";
+            shieldBar.style.width = '100%';
+            shieldBar.style.background = 'var(--green)';
+            
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('gameover-screen').classList.add('hidden');
+            
+            applyCoreBaseVisuals();
+            applyStateModifier('charge');
+
+            clearInterval(drainLoopInterval);
+            drainLoopInterval = setInterval(executeDrainTick, 100);
+
+            planNextStateRotation();
+        }
+
+        function applyCoreBaseVisuals() {
+            core.className = ""; 
+            if (currentLevel === 1) {
+                core.classList.add('lv-1-cyan');
+                levelText.textContent = "LEVEL 1";
+                levelText.style.color = "var(--cyan)";
+            } else if (currentLevel === 2) {
+                core.classList.add('lv-2-purple');
+                levelText.textContent = "LEVEL 2";
+                levelText.style.color = "var(--purple)";
+            } else if (currentLevel === 3) {
+                core.classList.add('lv-3-green');
+                levelText.textContent = "LEVEL 3";
+                levelText.style.color = "var(--green)";
+            }
+        }
+
+        function applyStateModifier(state) {
+            currentCoreModifier = state;
+            applyCoreBaseVisuals(); 
+
+            if(state === 'overload') {
+                core.classList.add('state-overload');
+                coreStatusText.textContent = "STOP TAP!";
+                coreStatusText.style.color = "var(--virus)";
+                consoleAlert.textContent = "ALERT: POWER INTRUSION INTERCEPTED!";
+                consoleAlert.style.color = "var(--virus)";
+                playSynthBeep(140, 'sawtooth', 0.2, 0.15);
+            } else if(state === 'fever') {
+                core.classList.add('state-fever');
+                coreStatusText.textContent = "FEVER MODE";
+                coreStatusText.style.color = "var(--gold)";
+                consoleAlert.textContent = "FEVER MODE ONLINE: NO ENERGY DRAIN!";
+                consoleAlert.style.color = "var(--gold)";
+                playSynthBeep(880, 'sine', 0.1, 0.1);
+            } else if(state === 'glitch') {
+                core.classList.add('state-glitch');
+                coreStatusText.textContent = "TAP NOW!";
+                coreStatusText.style.color = "#fff";
+                consoleAlert.textContent = "GOLDEN GLITCH DISCOVERED!";
+                consoleAlert.style.color = "#fff";
+                playSynthBeep(1200, 'sine', 0.08, 0.12);
+            } else {
+                coreStatusText.textContent = "TAP JAY";
+                coreStatusText.style.color = currentLevel === 1 ? 'var(--cyan)' : (currentLevel === 2 ? 'var(--purple)' : 'var(--green)');
+                consoleAlert.textContent = `LEVEL ${currentLevel} CORE: STABLE CONTEXT`;
+                consoleAlert.style.color = "#525975";
+            }
+        }
+
+        function planNextStateRotation() {
+            if(!isGameActive) return;
+            clearTimeout(changeStateTimeout);
+
+            let baseDifficultyFactor = 2300 - (currentLevel * 400); 
+            let dynamicSpeedFactor = Math.max(400, baseDifficultyFactor - (score * 1.5));
+            let delay = 700 + Math.random() * dynamicSpeedFactor;
+
+            changeStateTimeout = setTimeout(() => {
+                if(!isGameActive || currentCoreModifier === 'fever' || currentCoreModifier === 'glitch') return;
+
+                let randomRoll = Math.random();
+                let overloadThreshold = currentLevel === 3 ? 0.45 : 0.35;
+
+                if(randomRoll < overloadThreshold) {
+                    applyStateModifier('overload');
+                } else if(randomRoll < overloadThreshold + 0.10) {
+                    applyStateModifier('glitch');
+                    clearTimeout(specialStateTimeout);
+                    specialStateTimeout = setTimeout(() => {
+                        if(currentCoreModifier === 'glitch' && isGameActive) {
+                            applyStateModifier('charge');
+                            planNextStateRotation();
+                        }
+                    }, 650); 
+                    planNextStateRotation();
+                    return;
+                } else {
+                    applyStateModifier('charge');
+                }
+                planNextStateRotation();
+            }, delay);
+        }
+
+        function executeDrainTick() {
+            if(!isGameActive || currentCoreModifier === 'fever') return; 
+            
+            if(powerLevel > 0) {
+                let baseLeakRate = 0.3 + (currentLevel * 0.3);
+                let dynamicLeakRate = baseLeakRate + (score * 0.002);
+                powerLevel = Math.max(0, powerLevel - dynamicLeakRate);
+                powerFill.style.width = `${powerLevel}%`;
+                corePctText.textContent = `${Math.floor(powerLevel)}%`;
+            }
+        }
+
+        core.addEventListener('pointerdown', (e) => {
+            if(!isGameActive) return;
+            e.preventDefault();
+
+            container.classList.remove('shake');
+            void container.offsetWidth; 
+            container.classList.add('shake');
+
+            let rect = core.getBoundingClientRect();
+            let pointerX = e.clientX || rect.left + rect.width/2;
+            let pointerY = e.clientY || rect.top + rect.height/2;
+
+            if(currentCoreModifier === 'overload') {
+                if(hasShieldActive) {
+                    hasShieldActive = false;
+                    shieldBar.style.width = '0%';
+                    applyStateModifier('charge');
+                    consoleAlert.textContent = "SHIELD FORCE DISCHARGED! FINAL STAGE CAUTION!";
+                    consoleAlert.style.color = "var(--gold)";
+                    playSynthBeep(200, 'triangle', 0.4, 0.2);
+                    createDynamicSparks(pointerX, pointerY, 35, 'var(--gold)');
+                    hitStreak = 0;
+                    streakBadge.textContent = "STREAK: 0";
+                    planNextStateRotation();
+                } else {
+                    endGameProcess(false);
+                    return;
+                }
+            } else if(currentCoreModifier === 'glitch') {
+                score += 100;
+                powerLevel = Math.min(100, powerLevel + 15);
+                scoreText.textContent = score;
+                hitStreak += 2;
+                streakBadge.textContent = `STREAK: ${hitStreak}`;
+
+                createEvolvedJayText(pointerX, pointerY, 'var(--gold)', 'MEGA JAY!!!');
+                createDynamicSparks(pointerX, pointerY, 40, '#ffffff');
+                playSynthBeep(1400, 'sine', 0.15, 0.15);
+
+                evaluateLevelUpCondition();
+                applyStateModifier('charge');
+                planNextStateRotation();
+            } else if(currentCoreModifier === 'fever') {
+                powerLevel = Math.min(100, powerLevel + 5);
+                score += 40; 
+                scoreText.textContent = score;
+                hitStreak++;
+                streakBadge.textContent = `STREAK: ${hitStreak}`;
+
+                createEvolvedJayText(pointerX, pointerY, 'var(--gold)', 'TAP JAY!!!!');
+                createDynamicSparks(pointerX, pointerY, 18, 'var(--gold)');
+                playSynthBeep(950 + (hitStreak * 2), 'sine', 0.05);
+                
+                evaluateLevelUpCondition();
+            } else {
+                powerLevel = Math.min(100, powerLevel + 3);
+                hitStreak++;
+                streakBadge.textContent = `STREAK: ${hitStreak}`;
+
+                let activeColor = currentLevel === 1 ? 'var(--cyan)' : (currentLevel === 2 ? 'var(--purple)' : 'var(--green)');
+                let label = 'TAP!';
+                
+                if(hitStreak >= 30) {
+                    score += 30;
+                    activeColor = 'var(--gold)';
+                    label = 'ULTRA JAY🔥';
+                } else if(hitStreak >= 15) {
+                    score += 20;
+                    activeColor = 'var(--purple)';
+                    label = 'TAP JAY!🚀';
+                } else {
+                    score += 10;
+                }
+                scoreText.textContent = score;
+
+                if(hitStreak % 10 === 0 && Math.random() < 0.65) {
+                    triggerFeverMode();
+                }
+
+                createEvolvedJayText(pointerX, pointerY, activeColor, label);
+                createDynamicSparks(pointerX, pointerY, 8, activeColor);
+                playSynthBeep(550 + (powerLevel * 4), 'sine', 0.05);
+
+                evaluateLevelUpCondition();
+            }
+
+            powerFill.style.width = `${powerLevel}%`;
+            corePctText.textContent = `${Math.floor(powerLevel)}%`;
+        });
+
+        function triggerFeverMode() {
+            applyStateModifier('fever');
+            clearTimeout(specialStateTimeout);
+            
+            specialStateTimeout = setTimeout(() => {
+                if(!isGameActive) return;
+                applyStateModifier('charge');
+                planNextStateRotation();
+            }, 3500);
+        }
+
+        function evaluateLevelUpCondition() {
+            if(powerLevel >= 100) {
+                if(currentLevel < 3) {
+                    currentLevel++;
+                    powerLevel = 0; 
+                    playSynthBeep(700, 'sine', 0.15, 0.12);
+                    setTimeout(() => playSynthBeep(1100, 'sine', 0.3, 0.12), 120);
+                    
+                    consoleAlert.textContent = `LEVEL ADVANCED TO ${currentLevel}!`;
+                    consoleAlert.style.color = "var(--green)";
+                    
+                    createDynamicSparks(window.innerWidth/2, window.innerHeight/2, 45, 'var(--gold)');
+                    applyStateModifier('charge');
+                } else {
+                    endGameProcess(true);
+                }
+            }
+        }
+
+        function createEvolvedJayText(x, y, colorHex, textLabel) {
+            let textNode = document.createElement('div');
+            textNode.className = 'floating-text';
+            textNode.style.left = `${x - 40}px`;
+            textNode.style.top = `${y - 30}px`;
+            textNode.style.color = colorHex;
+            textNode.style.fontSize = textLabel.length > 5 ? '1.8rem' : '1.4rem';
+            textNode.textContent = textLabel;
+            document.body.appendChild(textNode);
+            setTimeout(() => textNode.remove(), 650);
+        }
+
+        function endGameProcess(isVictory) {
+            isGameActive = false;
+            clearInterval(drainLoopInterval);
+            clearTimeout(changeStateTimeout);
+            clearTimeout(specialStateTimeout);
+
+            let title = document.getElementById('gameover-title');
+            let subtitle = document.getElementById('gameover-subtitle');
+            let actionBtn = document.getElementById('rematch-btn');
+            document.getElementById('final-score').textContent = score;
+
+            if(isVictory) {
+                title.textContent = "MATRIX COMPLETELY RUNNING";
+                title.style.color = "var(--green)";
+                subtitle.textContent = "All 3 security levels stabilized successfully!";
+                actionBtn.style.background = "linear-gradient(135deg, var(--green) 0%, #00b046 100%)";
+                playSynthBeep(520, 'sine', 0.1);
+                setTimeout(() => playSynthBeep(1040, 'sine', 0.25), 120);
+            } else {
+                title.textContent = "CORE COLLAPSED";
+                title.style.color = "var(--virus)";
+                subtitle.textContent = `Overload containment failure triggered on Level ${currentLevel}.`;
+                actionBtn.style.background = "linear-gradient(135deg, var(--cyan) 0%, #00a8ff 100%)";
+                
+                let rect = core.getBoundingClientRect();
+                createDynamicSparks(rect.left + rect.width/2, rect.top + rect.height/2, 60, 'var(--virus)');
+                playSynthBeep(85, 'sawtooth', 0.7, 0.25);
+            }
+
+            setTimeout(() => {
+                document.getElementById('gameover-screen').classList.remove('hidden');
+            }, 500);
+        }
+
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function createDynamicSparks(x, y, count, color) {
+            for(let i=0; i<count; i++) {
+                let angle = Math.random() * Math.PI * 2;
+                let speed = 2 + Math.random() * 8;
+                sparks.push({
+                    x: x, y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    alpha: 1,
+                    decay: 0.025 + Math.random() * 0.035,
+                    color: color
+                });
+            }
+        }
+
+        function renderEngineFrame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            sparks.forEach((spark, index) => {
+                ctx.fillStyle = spark.color;
+                ctx.globalAlpha = spark.alpha;
+                ctx.fillRect(spark.x, spark.y, 3.5, 3.5);
+                
+                spark.x += spark.vx;
+                spark.y += spark.vy;
+                spark.alpha -= spark.decay;
+
+                if(spark.alpha <= 0) sparks.splice(index, 1);
+            });
+            ctx.globalAlpha = 1.0;
+            requestAnimationFrame(renderEngineFrame);
+        }
+        renderEngineFrame();
+    </script>
+</body>
+</html>
