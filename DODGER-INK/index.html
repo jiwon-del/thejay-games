@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Dodger Ink - Neon Edition</title>
+    <style>
+        body { 
+            margin: 0; 
+            background: #11111d; 
+            color: #fff; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            overflow: hidden; 
+            touch-action: none; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+        }
+        #gameCanvas { 
+            background: #161623; 
+            box-shadow: 0 0 20px rgba(189, 0, 255, 0.2);
+            cursor: crosshair; 
+        }
+        #ui { 
+            position: absolute; 
+            text-align: center; 
+            pointer-events: none; 
+            z-index: 10;
+            width: 100%;
+        }
+        .hidden { display: none !important; }
+        .box {
+            background: rgba(22, 22, 35, 0.9);
+            border: 2px solid #bd00ff;
+            padding: 30px;
+            display: inline-block;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(189, 0, 255, 0.4);
+            pointer-events: auto;
+            max-width: 80%;
+        }
+        h1 { 
+            color: #bd00ff; 
+            font-size: 42px; 
+            margin: 0 0 10px 0; 
+            text-shadow: 0 0 15px #bd00ff; 
+            letter-spacing: 2px;
+        }
+        p { margin: 10px 0; color: #e0c0ff; font-size: 16px; line-height: 1.4; }
+        button { 
+            margin-top: 20px;
+            padding: 15px 40px; 
+            font-size: 18px; 
+            font-weight: bold;
+            background: #bd00ff; 
+            border: none; 
+            color: white; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            box-shadow: 0 0 15px #bd00ff;
+            transition: 0.2s;
+        }
+        button:active {
+            transform: scale(0.95);
+            box-shadow: 0 0 5px #bd00ff;
+        }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <div id="menu" class="box">
+        <h1>DODGER INK</h1>
+        <p><strong>HOW TO PLAY:</strong><br>Draw bright purple lines to bounce the ball.<br>Keep it away from the spikes at the bottom!</p>
+        <p style="font-size: 14px; color: #00ffcc; text-shadow: 0 0 5px #00ffcc;">★ Collect glowing stars for +20 points each! ★</p>
+        <button onclick="startGame()">START GAME</button>
+    </div>
+    <div id="gameover" class="box hidden">
+        <h1>GAME OVER</h1>
+        <p id="finalScore" style="font-size: 24px; font-weight: bold;">Score: 0</p>
+        <p id="bestScore" style="font-size: 16px; color: #00ffcc;"></p>
+        <button onclick="startGame()">PLAY AGAIN</button>
+    </div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Audio Setup
+    let audioCtx = null;
+
+    // Game Variables
+    let ball, lines, currentLine, stars, score, highscore, gameRunning;
+    highscore = localStorage.getItem('dodger_ink_hs') || 0;
+    gameRunning = false;
+    currentLine = [];
+    stars = [];
+
+    // Spike settings
+    const spikeHeight = 25;
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    function playSound(freq, type, duration, volume = 0.1) {
+        if (!audioCtx) return;
+        try {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.frequency.value = freq; 
+            osc.type = type;
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain); 
+            gain.connect(audioCtx.destination);
+            osc.start(); 
+            osc.stop(audioCtx.currentTime + duration);
+        } catch(e) {}
+    }
+
+    function createRandomStar() {
+        return {
+            x: Math.random() * (canvas.width - 60) + 30,
+            y: Math.random() * (canvas.height - 200) + 60, // Sedikit lebih tinggi dari duri biar aman
+            radius: 12,
+            angle: Math.random() * Math.PI 
+        };
+    }
+
+    function spawnInitialStars() {
+        stars = [];
+        for (let i = 0; i < 5; i++) {
+            stars.push(createRandomStar());
+        }
+    }
+
+    // Mencari bintang dengan posisi paling dekat dari bola saat ini
+    function getClosestStar() {
+        if (stars.length === 0) return null;
+        let closest = stars[0];
+        let minDist = Math.hypot(ball.x - closest.x, ball.y - closest.y);
+        
+        for (let i = 1; i < stars.length; i++) {
+            let dist = Math.hypot(ball.x - stars[i].x, ball.y - stars[i].y);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = stars[i];
+            }
+        }
+        return closest;
+    }
+
+    function startGame() {
+        initAudio();
+        score = 0; 
+        lines = [];
+        currentLine = [];
+        
+        ball = { 
+            x: canvas.width / 2, 
+            y: 80, 
+            vx: (Math.random() - 0.5) * 3, // Mengurangi sedikit sebaran kecepatan horizontal awal
+            vy: 1, 
+            radius: 12 
+        };
+        
+        spawnInitialStars();
+        
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('gameover').classList.add('hidden');
+        gameRunning = true;
+        animate();
+    }
+
+    function getPos(e) {
+        let rect = canvas.getBoundingClientRect();
+        let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    canvas.addEventListener('pointerdown', e => {
+        if (!gameRunning) return;
+        currentLine = [getPos(e)];
+    });
+
+    canvas.addEventListener('pointermove', e => {
+        if (!gameRunning || currentLine.length === 0) return;
+        let pos = getPos(e);
+        let lastPos = currentLine[currentLine.length - 1];
+        let dist = Math.hypot(pos.x - lastPos.x, pos.y - lastPos.y);
+        if (dist > 5) {
+            currentLine.push(pos);
+        }
+    });
+
+    canvas.addEventListener('pointerup', () => {
+        if (currentLine.length > 2) {
+            lines.push({ points: currentLine, alpha: 1.0 });
+        }
+        currentLine = [];
+    });
+
+    function getClosestPointOnSegment(p, p1, p2) {
+        let A = p.x - p1.x; let B = p.y - p1.y; let C = p2.x - p1.x; let D = p2.y - p1.y;
+        let dot = A * C + B * D; let lenSq = C * C + D * D;
+        let param = lenSq !== 0 ? dot / lenSq : -1;
+        let xx, yy;
+        if (param < 0) { xx = p1.x; yy = p1.y; }
+        else if (param > 1) { xx = p2.x; yy = p2.y; }
+        else { xx = p1.x + param * C; yy = p1.y + param * D; }
+        return { x: xx, y: yy };
+    }
+
+    function animate() {
+        if (!gameRunning) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. Bola: Efek Gravitasi & Pergerakan
+        ball.vy += 0.12; // Menurunkan sedikit gaya gravitasi agar permainan lebih halus
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+
+        // Pantulan Dinding Kiri / Kanan
+        if (ball.x - ball.radius < 0) { ball.x = ball.radius; ball.vx = -ball.vx * 0.8; playSound(300, 'sine', 0.05); }
+        if (ball.x + ball.radius > canvas.width) { ball.x = canvas.width - ball.radius; ball.vx = -ball.vx * 0.8; playSound(300, 'sine', 0.05); }
+
+        // 2. Deteksi Tabrakan Bola dengan Garis Ungu
+        lines.forEach((line, lineIndex) => {
+            let pts = line.points;
+            for (let i = 0; i < pts.length - 1; i++) {
+                let closest = getClosestPointOnSegment(ball, pts[i], pts[i+1]);
+                let dist = Math.hypot(ball.x - closest.x, ball.y - closest.y);
+
+                if (dist < ball.radius + 3) {
+                    let angle = Math.atan2(pts[i+1].y - pts[i].y, pts[i+1].x - pts[i].x);
+                    let normalX = -Math.sin(angle);
+                    let normalY = Math.cos(angle);
+
+                    if (normalY > 0) { normalX = -normalX; normalY = -normalY; }
+
+                    let speed = Math.hypot(ball.vx, ball.vy);
+                    speed = Math.max(speed, 6.5); 
+                    
+                    // SMART BOUNCE LOGIC: Mengarahkan sedikit pantulan ke arah bintang terdekat
+                    let targetStar = getClosestStar();
+                    if (targetStar) {
+                        let toStarX = targetStar.x - ball.x;
+                        let toStarY = targetStar.y - ball.y;
+                        let distToStar = Math.hypot(toStarX, toStarY);
+                        if (distToStar > 0) {
+                            // Memberikan campuran 70% arah fisik asli + 30% arah target bintang
+                            normalX = normalX * 0.7 + (toStarX / distToStar) * 0.3;
+                            normalY = normalY * 0.7 + (toStarY / distToStar) * 0.3;
+                            
+                            // Normalisasi ulang vektor arah agar kecepatannya konisten
+                            let normalLen = Math.hypot(normalX, normalY);
+                            normalX /= normalLen;
+                            normalY /= normalLen;
+                        }
+                    }
+
+                    ball.vx = normalX * speed * 0.95;
+                    ball.vy = normalY * speed * 0.95;
+                    
+                    ball.x += normalX * 5;
+                    ball.y += normalY * 5;
+
+                    playSound(440, 'triangle', 0.15, 0.15);
+                    
+                    lines.splice(lineIndex, 1);
+                    break;
+                }
+            }
+        });
+
+        // 3. Deteksi Bola Mengambil Bintang & Efek Magnet Tarikan
+        for (let i = stars.length - 1; i >= 0; i--) {
+            let s = stars[i];
+            let distToStar = Math.hypot(ball.x - s.x, ball.y - s.y);
+            
+            // STAR MAGNET LOGIC: Jika bola cukup dekat dengan bintang (jarak kurang dari 60 pixel)
+            if (distToStar < 60 && distToStar > 0) {
+                // Berikan tarikan halus menuju titik pusat bintang
+                ball.vx += ((s.x - ball.x) / distToStar) * 0.15;
+                ball.vy += ((s.y - ball.y) / distToStar) * 0.15;
+            }
+
+            if (distToStar < ball.radius + s.radius) {
+                score += 20; 
+                playSound(880, 'sine', 0.1, 0.2); 
+                setTimeout(() => playSound(1320, 'sine', 0.15, 0.2), 50); 
+                
+                stars.splice(i, 1);
+                stars.push(createRandomStar());
+            }
+        }
+
+        // 4. Menggambar Barisan Duri (Spikes) di Bawah Layar
+        ctx.fillStyle = "#3a3a4a";
+        for (let i = 0; i < canvas.width; i += 20) {
+            ctx.beginPath();
+            ctx.moveTo(i, canvas.height);
+            ctx.lineTo(i + 10, canvas.height - spikeHeight);
+            ctx.lineTo(i + 20, canvas.height);
+            ctx.fill();
+        }
+
+        // 5. Menggambar Semua Bintang yang Ada di Layar
+        stars.forEach(s => {
+            s.angle += 0.04; 
+            ctx.save();
+            ctx.translate(s.x, s.y);
+            ctx.rotate(s.angle);
+            ctx.fillStyle = "#ffcc00";
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = "#ffcc00";
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * s.radius, Math.sin((18 + i * 72) * Math.PI / 180) * s.radius);
+                ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * (s.radius / 2), Math.sin((54 + i * 72) * Math.PI / 180) * (s.radius / 2));
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+            ctx.shadowBlur = 0;
+        });
+
+        // 6. Menggambar Semua Garis Pemain (Efek Memudar)
+        ctx.lineWidth = 6;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        for (let i = lines.length - 1; i >= 0; i--) {
+            let l = lines[i];
+            l.alpha -= 0.003; 
+            if (l.alpha <= 0) {
+                lines.splice(i, 1);
+                continue;
+            }
+            ctx.strokeStyle = `rgba(189, 0, 255, ${l.alpha})`;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "#bd00ff";
+            ctx.beginPath();
+            l.points.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.stroke();
+        }
+        ctx.shadowBlur = 0; 
+
+        // 7. Menggambar Garis yang Sedang Dibuat
+        if (currentLine.length > 1) {
+            ctx.strokeStyle = "rgba(224, 192, 255, 0.8)";
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            currentLine.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.stroke();
+        }
+
+        // 8. Menggambar Bola
+        ctx.fillStyle = "#e0c0ff";
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = "#e0c0ff";
+        ctx.beginPath(); 
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); 
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // 9. Tampilan Score HUD atas
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 20px Arial";
+        ctx.fillText(`SCORE: ${score}`, 20, 40);
+        ctx.fillStyle = "#bd00ff";
+        ctx.fillText(`BEST: ${highscore}`, canvas.width - 130, 40);
+
+        // 10. Kondisi Kalah
+        if (ball.y + ball.radius > canvas.height - spikeHeight) {
+            gameRunning = false;
+            playSound(150, 'sawtooth', 0.4, 0.2); 
+            
+            let isNewBest = false;
+            if (score > highscore) { 
+                highscore = score; 
+                localStorage.setItem('dodger_ink_hs', score); 
+                isNewBest = true;
+            }
+            
+            document.getElementById('finalScore').innerText = "Final Score: " + score;
+            document.getElementById('bestScore').innerText = isNewBest ? "NEW PERSONAL BEST!" : "Personal Best: " + highscore;
+            document.getElementById('gameover').classList.remove('hidden');
+        } else { 
+            requestAnimationFrame(animate); 
+        }
+    }
+
+    function resize() { 
+        canvas.width = window.innerWidth; 
+        canvas.height = window.innerHeight; 
+    }
+    window.onresize = resize; 
+    resize();
+</script>
+</body>
+</html>
