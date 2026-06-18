@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEON FARM // MERGE DEFENSE</title>
+    <style>
+        :root {
+            --bg: #060814;
+            --grid-bg: rgba(255, 255, 255, 0.03);
+            --neon-green: #00ff66;
+            --neon-cyan: #00f0ff;
+            --neon-pink: #ff0077;
+            --neon-gold: #ffd700;
+            --neon-purple: #9d00ff;
+            --boss-red: #ff003c;
+            --final-boss: #ff00ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0; padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 420px;
+            height: 100vh;
+            background: linear-gradient(180deg, #0b0f26 0%, #04050f 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 15px;
+            position: relative;
+        }
+
+        @media (min-width: 450px) {
+            #game-container {
+                height: 90vh;
+                max-height: 850px;
+                border-radius: 20px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            }
+        }
+
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #060814;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+            border-radius: inherit;
+        }
+        
+        .hidden { display: none !important; }
+
+        .cyber-btn {
+            background: var(--neon-cyan); color: #000;
+            border: none; padding: 14px 32px;
+            font-size: 0.95rem; font-weight: 800;
+            border-radius: 12px; cursor: pointer; margin-top: 12px;
+            box-shadow: 0 0 15px var(--neon-cyan);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            width: 90%;
+            transition: transform 0.1s;
+            flex-shrink: 0;
+        }
+        .cyber-btn:active { transform: scale(0.98); }
+        
+        .cyber-btn.secondary {
+            background: transparent; color: #fff;
+            border: 2px solid rgba(255,255,255,0.2);
+            box-shadow: none;
+            margin-top: 8px;
+        }
+
+        .manual-scroll-area {
+            width: 100%;
+            max-height: 65vh;
+            overflow-y: auto;
+            margin: 15px 0;
+            padding-right: 5px;
+            text-align: left;
+        }
+        
+        .manual-scroll-area::-webkit-scrollbar { width: 4px; }
+        .manual-scroll-area::-webkit-scrollbar-track { background: rgba(255,255,255,0.01); }
+        .manual-scroll-area::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.3); border-radius: 4px; }
+
+        .manual-section-title {
+            font-size: 0.85rem;
+            color: var(--neon-cyan);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--neon-cyan);
+            padding-left: 8px;
+            font-weight: 700;
+        }
+
+        .guide-box {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+        .guide-item {
+            display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px;
+            font-size: 0.8rem; color: #b1b9dd; line-height: 1.4;
+        }
+        .guide-item:last-child { margin-bottom: 0; }
+        .guide-icon {
+            font-size: 1.1rem; width: 32px; height: 32px;
+            background: rgba(255,255,255,0.04);
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 8px; flex-shrink: 0;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        /* HUD PANEL */
+        header {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 10px 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .hud-item { display: flex; flex-direction: column; flex: 1; }
+        .hud-label { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.4); }
+        .hud-val { font-size: 1.1rem; font-weight: 800; }
+
+        #battle-zone {
+            flex-grow: 1;
+            position: relative;
+            margin: 15px 0;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.03);
+            overflow: hidden;
+        }
+        #gate-line {
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 6px;
+            background: var(--neon-pink);
+            box-shadow: 0 0 10px var(--neon-pink);
+            z-index: 5;
+        }
+
+        #boss-alert {
+            position: absolute;
+            top: 30%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(255, 0, 60, 0.9);
+            color: #fff; padding: 10px 20px;
+            font-weight: 900; font-size: 1.1rem; border-radius: 8px;
+            box-shadow: 0 0 20px var(--boss-red);
+            letter-spacing: 2px; z-index: 99;
+            animation: blink 0.5s infinite alternate;
+            display: none;
+        }
+        @keyframes blink { 0% { opacity: 0.3; } 100% { opacity: 1; } }
+
+        /* ENEMIES */
+        .enemy {
+            position: absolute;
+            width: 32px; height: 32px;
+            background: rgba(255, 0, 119, 0.1);
+            border: 2px solid var(--neon-pink);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--neon-pink);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem; transform: translate(-50%, -50%);
+            z-index: 2;
+        }
+        
+        /* MID BOSS STYLING */
+        .enemy.boss-unit {
+            width: 70px !important; height: 70px !important;
+            background: rgba(255, 0, 60, 0.2) !important;
+            border: 4px solid var(--boss-red) !important;
+            box-shadow: 0 0 30px var(--boss-red), inset 0 0 15px var(--boss-red) !important;
+            font-size: 2.5rem !important;
+            animation: shake 0.3s infinite alternate;
+            z-index: 4 !important;
+        }
+
+        /* FINAL OMEGA BOSS STYLING (SEREM & MERIAH) */
+        .enemy.final-boss-unit {
+            width: 95px !important; height: 95px !important;
+            background: rgba(255, 0, 255, 0.25) !important;
+            border: 5px solid var(--final-boss) !important;
+            box-shadow: 0 0 40px var(--final-boss), inset 0 0 25px var(--final-boss), 0 0 60px var(--neon-cyan) !important;
+            font-size: 3.8rem !important;
+            animation: shake 0.15s infinite alternate;
+            z-index: 4 !important;
+        }
+
+        @keyframes shake { 0% { transform: translate(-50%, -52%) scale(1); } 100% { transform: translate(-50%, -48%) scale(1.04); } }
+
+        .enemy-hp-bar {
+            position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+            width: 34px; height: 5px; background: rgba(0,0,0,0.5); border-radius: 2px; overflow: hidden;
+        }
+        .enemy.boss-unit .enemy-hp-bar { width: 60px !important; height: 7px !important; top: -16px !important; }
+        .enemy.final-boss-unit .enemy-hp-bar { width: 80px !important; height: 9px !important; top: -20px !important; }
+        
+        .enemy-hp-fill { height: 100%; background: var(--neon-pink); width: 100%; }
+        .enemy.boss-unit .enemy-hp-fill { background: var(--boss-red) !important; }
+        .enemy.final-boss-unit .enemy-hp-fill { background: linear-gradient(90deg, var(--final-boss), var(--neon-cyan)) !important; }
+        
+        /* LASER BEAM */
+        .laser-beam {
+            position: absolute !important;
+            width: 35px !important; height: 6px !important;
+            background: #ffffff !important; border-radius: 3px !important;
+            box-shadow: 0 0 10px #ffffff, 0 0 20px var(--neon-cyan), 0 0 30px var(--neon-cyan) !important;
+            transform: translate(-50%, -50%) !important;
+            z-index: 999 !important; display: block !important;
+        }
+
+        /* GRID PLATFORM */
+        #farm-zone {
+            background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 12px; border-radius: 16px; margin-bottom: 10px;
+        }
+        .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .plot {
+            background: var(--grid-bg); aspect-ratio: 1; border-radius: 12px;
+            border: 1px dashed rgba(255,255,255,0.15); display: flex;
+            justify-content: center; align-items: center; cursor: pointer; position: relative;
+        }
+        .plot.selected {
+            background: rgba(0, 240, 255, 0.15); border-color: var(--neon-cyan);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+        }
+
+        /* TOWERS */
+        .plant {
+            width: 45px; height: 45px; border-radius: 50%; display: flex;
+            flex-direction: column; justify-content: center; align-items: center;
+            font-weight: 800; font-size: 1.2rem; position: relative;
+            box-shadow: 0 0 15px currentColor; animation: pulse 2s infinite alternate;
+        }
+        @keyframes pulse { 0% { transform: scale(1); } 100% { transform: scale(1.04); } }
+        .plant-lv1 { color: var(--neon-green); border: 2px solid var(--neon-green); background: rgba(0,255,102,0.1); }
+        .plant-lv2 { color: var(--neon-cyan); border: 2px solid var(--neon-cyan); background: rgba(0,240,255,0.1); }
+        .plant-lv3 { color: var(--neon-gold); border: 2px solid var(--neon-gold); background: rgba(255,215,0,0.1); }
+        .plant-lv4 { color: #ffffff; background: var(--neon-purple); border: 2px solid #ffffff; box-shadow: 0 0 20px var(--neon-purple); font-size: 0.75rem; letter-spacing: 0.5px; }
+        .plant-badge { position: absolute; bottom: -4px; background: #fff; color: #000; font-size: 0.5rem; padding: 1px 4px; border-radius: 4px; font-weight: 900; }
+        .plant-lv4 .plant-badge { background: var(--neon-purple); color: #fff; border: 1px solid #fff; }
+
+        .action-bar { display: flex; gap: 10px; }
+        .buy-btn {
+            flex-grow: 1; background: linear-gradient(135deg, var(--neon-green) 0%, #00b347 100%);
+            color: #030511; border: none; padding: 14px; font-size: 0.9rem; font-weight: 700;
+            border-radius: 12px; cursor: pointer; display: flex;
+            justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 15px rgba(0, 255, 102, 0.3);
+        }
+
+        /* VICTORY SCREEN EFFECTS */
+        .celebration-text {
+            font-size: 2.8rem !important; font-weight: 900; color: var(--neon-gold);
+            text-shadow: 0 0 20px var(--neon-gold), 0 0 40px var(--neon-cyan);
+            animation: victory-glow 0.6s infinite alternate;
+        }
+        @keyframes victory-glow { 0% { transform: scale(0.95); filter: hue-rotate(0deg); } 100% { transform: scale(1.05); filter: hue-rotate(45deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        
+        <div id="how-to-screen" class="screen">
+            <h2 style="color: var(--neon-gold); font-size: 1.5rem; margin-bottom: 2px; text-shadow: 0 0 10px rgba(255,215,0,0.2)">TACTICAL MANUAL</h2>
+            <p style="color: #6a79a6; font-size: 0.75rem; margin-bottom: 5px;">System Security Protocol Loop v1.0.6</p>
+            
+            <div class="manual-scroll-area">
+                <div class="manual-section-title">Core Gameplay Loop</div>
+                <div class="guide-box">
+                    <div class="guide-item">
+                        <div class="guide-icon" style="color:var(--neon-green)">🌱</div>
+                        <div><strong>1. Deploy Seeds:</strong> Tap <strong>"BUY NEON SEED"</strong> to build defenses. Price scale updates dynamically per transaction.</div>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-icon" style="color:var(--neon-cyan)">⚡</div>
+                        <div><strong>2. Match & Merge:</strong> Tap a tower, then tap an identical tower class to trigger evolution. Grid spacing is constrained!</div>
+                    </div>
+                </div>
+
+                <div class="manual-section-title">🚨 THREAT REPORT: DETECTED ENEMY BOSSES</div>
+                <div class="guide-box" style="border: 1px solid var(--boss-red); background: rgba(255,0,60,0.04);">
+                    <div style="font-size: 0.78rem; color: #ff9fb2; line-height: 1.4; margin-bottom: 8px;">
+                        • <strong>Score 500:</strong> Mid-stage Core Intruder spawns. Eliminating it grants <strong>+$1000 Credits</strong>.
+                    </div>
+                    <div style="font-size: 0.78rem; color: #f5a3ff; line-height: 1.4;">
+                        • <strong>Score 1000:</strong> <strong>THE OMEGA INTRUDER (FINAL BOSS)</strong> arrives. Defeat it to fully secure the system matrix.
+                    </div>
+                </div>
+            </div>
+
+            <button class="cyber-btn" onclick="startGameDirectly()">Deploy Grid</button>
+            <button class="cyber-btn secondary" onclick="closeHowTo()">Back to Menu</button>
+        </div>
+
+        <!-- MAIN MENU (ENGLISH) -->
+        <div id="main-menu" class="screen hidden">
+            <h1 style="color: var(--neon-cyan); font-size: 2.4rem; font-weight: 900; letter-spacing: 2px; text-shadow: 0 0 15px var(--neon-cyan)">NEON FARM</h1>
+            <h3 style="color: var(--neon-pink); font-size: 1rem; letter-spacing: 4px; margin-bottom: 25px;">MERGE DEFENSE</h3>
+            <button class="cyber-btn" onclick="startGameDirectly()">Start Mission</button>
+            <button class="cyber-btn secondary" onclick="openHowTo()">View Manual</button>
+        </div>
+
+        <!-- GAME OVER SCREEN OVERLAY (ENGLISH) -->
+        <div id="gameover-screen" class="screen hidden">
+            <h1 style="color: var(--neon-pink); font-size: 2.2rem; font-weight: 900; margin-bottom: 10px; text-shadow: 0 0 15px var(--neon-pink)">CORE COLLAPSED</h1>
+            <p style="color: #6a79a6; font-size: 0.8rem;">System firewall breached by rogue hostiles.</p>
+            <div style="margin: 20px 0; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); width: 85%;">
+                <div>
+                    <span class="hud-label">Final Score</span>
+                    <h2 id="final-score" style="font-size: 2rem; color: var(--neon-cyan);">0</h2>
+                </div>
+            </div>
+            <button class="cyber-btn" onclick="startGameDirectly()">Reboot Matrix</button>
+            <button class="cyber-btn secondary" onclick="backToMainMenuScene()">Exit to Menu</button>
+        </div>
+
+        <!-- ================= WINNER CELEBRATION SCREEN OVERLAY ================= -->
+        <div id="victory-screen" class="screen hidden">
+            <div style="font-size: 3.5rem; margin-bottom: 10px;">🏆</div>
+            <h1 class="celebration-text">SYSTEM SECURED</h1>
+            <h3 style="color: var(--neon-cyan); font-size: 1.1rem; letter-spacing: 2px; margin-bottom: 20px;">YOU BEAT THE GAME!</h3>
+            <p style="color: #a4b3e6; font-size: 0.85rem; max-width: 85%; line-height: 1.4; margin-bottom: 20px;">
+                The Ultimate Omega Intruder has been entirely wiped out. The grid matrix is now safe under your watch. Awesome job!
+            </p>
+            <div style="margin-bottom: 25px; background: rgba(0, 240, 255, 0.05); padding: 12px 25px; border-radius: 12px; border: 1px dashed var(--neon-cyan);">
+                <span class="hud-label" style="color: #fff; opacity: 0.6;">Victory Score Achievement</span>
+                <h2 id="victory-score" style="font-size: 2rem; color: var(--neon-gold);">1000</h2>
+            </div>
+            <button class="cyber-btn" onclick="startGameDirectly()" style="background: var(--neon-gold); box-shadow: 0 0 15px var(--neon-gold);">Play Again</button>
+            <button class="cyber-btn secondary" onclick="backToMainMenuScene()">Main Menu</button>
+        </div>
+
+        <!-- ARENA UTAMA GAMEPLAY -->
+        <div id="gameplay-area" class="hidden" style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%;">
+            <header>
+                <div class="hud-item">
+                    <span class="hud-label">Credits</span>
+                    <span id="coin-txt" class="hud-val" style="color: var(--neon-gold);">$250</span>
+                </div>
+                <div class="hud-item" style="text-align: center;">
+                    <span class="hud-label">Score</span>
+                    <span id="score-txt" class="hud-val" style="color: var(--neon-cyan);">0</span>
+                </div>
+                <div class="hud-item" style="text-align: right;">
+                    <span class="hud-label">Threat Status</span>
+                    <span id="wave-txt" class="hud-val" style="color: var(--neon-pink);">STABLE</span>
+                </div>
+            </header>
+
+            <div id="battle-zone">
+                <div id="gate-line"></div>
+                <div id="boss-alert">⚠️ BOSS INTRUSION ⚠️</div>
+            </div>
+
+            <div id="farm-zone">
+                <div class="grid-container" id="grid"></div>
+            </div>
+
+            <div class="action-bar">
+                <button class="buy-btn" onclick="buySeed()">
+                    <span>🌱 BUY NEON SEED</span>
+                    <span id="cost-txt" style="background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px;">$30</span>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let coins = 250;
+        let score = 0;
+        let wave = 1;
+        let seedCost = 30;
+        let isGameOver = false;
+        let isGameStarted = false;
+        
+        let bossSpawned = false;
+        let bossActive = false;
+        let finalBossSpawned = false; 
+
+        let gridData = Array(9).fill(null); 
+        let selectedPlotIndex = null;
+        let enemies = [];
+        let bullets = [];
+        
+        let enemiesSpawnedThisWave = 0;
+        let totalEnemiesInWave = 0;
+        let spawnTimeout = null;
+        let audioCtx = null;
+
+        const gridDOM = document.getElementById('grid');
+        const battleZone = document.getElementById('battle-zone');
+        const coinTxt = document.getElementById('coin-txt');
+        const scoreTxt = document.getElementById('score-txt');
+        const waveTxt = document.getElementById('wave-txt');
+        const costTxt = document.getElementById('cost-txt');
+        const bossAlertDOM = document.getElementById('boss-alert');
+        
+        const mainMenu = document.getElementById('main-menu');
+        const howToScreen = document.getElementById('how-to-screen');
+        const gameoverScreen = document.getElementById('gameover-screen');
+        const victoryScreen = document.getElementById('victory-screen');
+        const gameplayArea = document.getElementById('gameplay-area');
+
+        const pestEmojis = ['🕷️', '🪰', '🪲'];
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            let now = audioCtx.currentTime;
+
+            if (type === 'shoot') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(520, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.08);
+                gain.gain.setValueAtTime(0.04, now); gain.gain.linearRampToValueAtTime(0, now + 0.08);
+                osc.start(now); osc.stop(now + 0.08);
+            } else if (type === 'hit') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(120, now);
+                gain.gain.setValueAtTime(0.08, now); gain.gain.linearRampToValueAtTime(0, now + 0.06);
+                osc.start(now); osc.stop(now + 0.06);
+            } else if (type === 'merge') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(300, now); osc.frequency.setValueAtTime(600, now + 0.08);
+                gain.gain.setValueAtTime(0.08, now); gain.gain.linearRampToValueAtTime(0, now + 0.16);
+                osc.start(now); osc.stop(now + 0.16);
+            } else if (type === 'boss') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(160, now);
+                osc.frequency.linearRampToValueAtTime(80, now + 0.5);
+                gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);
+            } else if (type === 'victory') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(554, now + 0.1); osc.frequency.setValueAtTime(659, now + 0.2); osc.frequency.setValueAtTime(880, now + 0.3);
+                gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);
+            } else if (type === 'gameover') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, now);
+                gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now + 0.6);
+                osc.start(now); osc.stop(now + 0.6);
+            }
+        }
+
+        function openHowTo() { initAudio(); mainMenu.classList.add('hidden'); howToScreen.classList.remove('hidden'); }
+        function closeHowTo() { howToScreen.classList.add('hidden'); mainMenu.classList.remove('hidden'); }
+        function backToMainMenuScene() { gameoverScreen.classList.add('hidden'); victoryScreen.classList.add('hidden'); gameplayArea.classList.add('hidden'); mainMenu.classList.remove('hidden'); isGameStarted = false; }
+
+        function startGameDirectly() {
+            if(spawnTimeout) { clearTimeout(spawnTimeout); spawnTimeout = null; }
+            
+            enemies = []; bullets = [];
+            const remnants = battleZone.querySelectorAll('.enemy, .laser-beam');
+            remnants.forEach(el => el.remove());
+            bossAlertDOM.style.display = 'none';
+
+            initAudio();
+            mainMenu.classList.add('hidden'); howToScreen.classList.add('hidden'); gameoverScreen.classList.add('hidden'); victoryScreen.classList.add('hidden'); gameplayArea.classList.remove('hidden'); 
+
+            coins = 250; score = 0; wave = 1; seedCost = 30; 
+            isGameOver = false; isGameStarted = true;
+            bossSpawned = false; bossActive = false; finalBossSpawned = false;
+            
+            gridData = Array(9).fill(null);
+            selectedPlotIndex = null;
+            enemiesSpawnedThisWave = 0; totalEnemiesInWave = 0;
+            
+            gridData[0] = { level: 1 };
+            gridData[1] = { level: 1 };
+
+            updateHUD(); createGrid(); renderGridItems(); startWave();
+        }
+
+        function createGrid() {
+            gridDOM.innerHTML = '';
+            for(let i=0; i<9; i++) {
+                let plot = document.createElement('div');
+                plot.className = 'plot'; plot.dataset.index = i;
+                plot.addEventListener('click', () => handlePlotClick(i));
+                gridDOM.appendChild(plot);
+            }
+        }
+
+        function updateHUD() {
+            coinTxt.innerHTML = `$${coins}`;
+            scoreTxt.innerHTML = String(score); 
+            costTxt.innerHTML = `$${seedCost}`;
+            if(finalBossSpawned && bossActive) {
+                waveTxt.innerHTML = `<span style="color:var(--final-boss); animation:blink 0.3s infinite alternate;">OMEGA BOSS</span>`;
+            } else if(bossActive) {
+                waveTxt.innerHTML = `<span style="color:var(--boss-red); animation:blink 0.4s infinite alternate;">MID BOSS</span>`;
+            } else {
+                waveTxt.innerHTML = `WAVE ${wave}`;
+            }
+        }
+
+        function buySeed() {
+            if(isGameOver || !isGameStarted || coins < seedCost) return;
+            let emptyIndex = gridData.findIndex(item => item === null);
+            if(emptyIndex === -1) return;
+
+            coins -= seedCost;
+            gridData[emptyIndex] = { level: 1 };
+            seedCost = Math.floor(seedCost * 1.08); 
+            playSound('hit'); updateHUD(); renderGridItems();
+        }
+
+        function handlePlotClick(index) {
+            if(isGameOver || !isGameStarted) return;
+            if(gridData[index] === null) {
+                if(selectedPlotIndex !== null) {
+                    gridData[index] = gridData[selectedPlotIndex]; gridData[selectedPlotIndex] = null;
+                    document.querySelectorAll('.plot')[selectedPlotIndex].classList.remove('selected');
+                    selectedPlotIndex = null; renderGridItems();
+                }
+                return;
+            }
+            if(selectedPlotIndex === null) {
+                selectedPlotIndex = index; document.querySelectorAll('.plot')[index].classList.add('selected');
+            } else {
+                if(selectedPlotIndex === index) {
+                    document.querySelectorAll('.plot')[index].classList.remove('selected'); selectedPlotIndex = null;
+                } else {
+                    let plantA = gridData[selectedPlotIndex]; let plantB = gridData[index];
+                    if(plantA.level === plantB.level && plantA.level < 4) {
+                        gridData[index].level += 1; gridData[selectedPlotIndex] = null; selectedPlotIndex = null; playSound('merge');
+                    } else {
+                        gridData[index] = plantA; gridData[selectedPlotIndex] = plantB; selectedPlotIndex = null;
+                    }
+                    renderGridItems();
+                }
+            }
+        }
+
+        function renderGridItems() {
+            const plots = document.querySelectorAll('.plot');
+            plots.forEach((plot, i) => {
+                plot.innerHTML = ''; plot.classList.remove('selected');
+                if(gridData[i] !== null) {
+                    let lv = gridData[i].level; let plant = document.createElement('div');
+                    plant.className = `plant plant-lv${lv}`;
+                    if (lv === 4) { plant.innerHTML = `JAY <span class="plant-badge">MAX</span>`; }
+                    else {
+                        let icon = lv === 1 ? '🌱' : (lv === 2 ? '⚡' : '🔥');
+                        plant.innerHTML = `${icon} <span class="plant-badge">LV ${lv}</span>`;
+                    }
+                    plot.appendChild(plant);
+                }
+            });
+        }
+
+        function triggerMidBoss() {
+            bossSpawned = true; bossActive = true;
+            if(spawnTimeout) clearTimeout(spawnTimeout);
+
+            playSound('boss');
+            bossAlertDOM.style.innerHTML = "⚠️ BOSS INTRUSION ⚠️";
+            bossAlertDOM.style.background = "rgba(255, 0, 60, 0.9)";
+            bossAlertDOM.style.display = 'block';
+            setTimeout(() => { bossAlertDOM.style.display = 'none'; }, 3000);
+
+            let bZoneRect = battleZone.getBoundingClientRect();
+            enemies.push({
+                id: 'MID-BOSS', x: bZoneRect.width + 40, y: bZoneRect.height / 2,
+                hp: 500, maxHp: 500, speed: 0.35, emoji: '👾', isBoss: true, isFinalBoss: false
+            });
+            updateHUD();
+        }
+
+        function triggerFinalBoss() {
+            finalBossSpawned = true; bossActive = true;
+            if(spawnTimeout) clearTimeout(spawnTimeout);
+
+            playSound('boss');
+            bossAlertDOM.innerHTML = "🚨 OMEGA FINAL BOSS 🚨";
+            bossAlertDOM.style.background = "rgba(255, 0, 255, 0.9)";
+            bossAlertDOM.style.boxShadow = "0 0 30px var(--final-boss)";
+            bossAlertDOM.style.display = 'block';
+            setTimeout(() => { bossAlertDOM.style.display = 'none'; }, 4000);
+
+            let bZoneRect = battleZone.getBoundingClientRect();
+            enemies.push({
+                id: 'FINAL-OMEGA-BOSS', x: bZoneRect.width + 60, y: bZoneRect.height / 2,
+                hp: 1200, maxHp: 1200, speed: 0.22, emoji: '👑👾', isBoss: false, isFinalBoss: true
+            });
+            updateHUD();
+        }
+
+        function startWave() {
+            if(isGameOver || !isGameStarted || bossActive) return;
+            totalEnemiesInWave = 4 + (wave * 2);
+            enemiesSpawnedThisWave = 0;
+
+            function spawnIndividual() {
+                if(isGameOver || !isGameStarted || bossActive || enemiesSpawnedThisWave >= totalEnemiesInWave) return;
+                
+                let bZoneRect = battleZone.getBoundingClientRect();
+                let randomEmoji = pestEmojis[Math.floor(Math.random() * pestEmojis.length)];
+                let calculatedHp = 15 + (wave * 12);
+
+                enemies.push({
+                    id: Date.now() + Math.random(),
+                    x: bZoneRect.width + 20,
+                    y: 30 + Math.random() * (bZoneRect.height - 60),
+                    hp: calculatedHp, maxHp: calculatedHp,
+                    speed: 0.6 + (wave * 0.08), emoji: randomEmoji, isBoss: false, isFinalBoss: false
+                });
+                enemiesSpawnedThisWave++;
+                spawnTimeout = setTimeout(spawnIndividual, Math.max(400, 1500 - (wave * 60)));
+            }
+            spawnIndividual();
+        }
+
+        let lastShootTime = 0;
+        function updateEngine() {
+            if(isGameOver || !isGameStarted) { requestAnimationFrame(updateEngine); return; }
+
+            // KONDISI PEMICU BOS
+            if(score >= 500 && !bossSpawned) {
+                triggerMidBoss();
+            }
+            if(score >= 1000 && !finalBossSpawned) {
+                triggerFinalBoss();
+            }
+
+            let bZoneRect = battleZone.getBoundingClientRect();
+            let now = Date.now();
+
+            if(now - lastShootTime > 600) { 
+                lastShootTime = now; let fired = false;
+                gridData.forEach((plant, idx) => {
+                    if(plant !== null && enemies.length > 0) {
+                        let spawnY = 30 + ((idx % 3) * ((bZoneRect.height - 60) / 3)) + (Math.random() * 8);
+                        let ammoDamage = plant.level === 4 ? 24 : plant.level * 6;
+
+                        bullets.push({
+                            x: 15, y: spawnY,
+                            targetEnemyId: enemies[0].id, damage: ammoDamage, speed: 9
+                        });
+                        fired = true;
+                    }
+                });
+                if(fired) playSound('shoot');
+            }
+
+            for (let i = 0; i < enemies.length; i++) {
+                enemies[i].x -= enemies[i].speed;
+                let touchLimit = (enemies[i].isBoss || enemies[i].isFinalBoss) ? 35 : 6;
+                if(enemies[i].x <= touchLimit) { triggerGameOver(); return; }
+            }
+
+            for (let bIndex = bullets.length - 1; bIndex >= 0; bIndex--) {
+                let bullet = bullets[bIndex];
+                let target = enemies.find(e => e.id === bullet.targetEnemyId);
+                if(!target && enemies.length > 0) { target = enemies[0]; bullet.targetEnemyId = target.id; }
+
+                if(target) {
+                    let dx = target.x - bullet.x; let dy = target.y - bullet.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    let hitRadius = target.isFinalBoss ? 45 : (target.isBoss ? 35 : 18);
+                    
+                    if(dist < hitRadius) { 
+                        target.hp -= bullet.damage; bullets.splice(bIndex, 1); playSound('hit');
+
+                        if(target.hp <= 0) {
+                            let idx = enemies.indexOf(target);
+                            if(idx > -1) {
+                                enemies.splice(idx, 1);
+                                
+                                if(target.isFinalBoss) {
+                                    // MENANG TOTAL JIKA FINAL BOSS HANCUR
+                                    score += 200;
+                                    bossActive = false;
+                                    triggerVictory();
+                                } else if(target.isBoss) {
+                                    score += 100; coins += 1000; 
+                                    bossActive = false; updateHUD();
+                                    wave++; startWave();
+                                } else {
+                                    score += 20; coins += 100; updateHUD();
+                                    if(enemies.length === 0 && enemiesSpawnedThisWave >= totalEnemiesInWave) {
+                                        wave++; updateHUD(); startWave();
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        bullet.x += (dx / dist) * bullet.speed; bullet.y += (dy / dist) * bullet.speed;
+                    }
+                } else { bullets.splice(bIndex, 1); }
+            }
+
+            renderBattleEntities();
+            requestAnimationFrame(updateEngine);
+        }
+
+        function renderBattleEntities() {
+            const existingEntities = battleZone.querySelectorAll('.enemy, .laser-beam');
+            existingEntities.forEach(el => el.remove());
+
+            enemies.forEach(e => {
+                let el = document.createElement('div');
+                if(e.isFinalBoss) el.className = 'enemy final-boss-unit';
+                else if(e.isBoss) el.className = 'enemy boss-unit';
+                else el.className = 'enemy';
+                
+                el.style.left = `${e.x}px`; el.style.top = `${e.y}px`;
+                el.textContent = e.emoji;
+
+                let hpBar = document.createElement('div');
+                hpBar.className = 'enemy-hp-bar';
+                let hpFill = document.createElement('div');
+                hpFill.className = 'enemy-hp-fill';
+                let pct = Math.max(0, (e.hp / e.maxHp) * 100);
+                hpFill.style.width = `${pct}%`;
+                
+                hpBar.appendChild(hpFill); el.appendChild(hpBar);
+                battleZone.appendChild(el);
+            });
+
+            bullets.forEach(b => {
+                let el = document.createElement('div');
+                el.className = 'laser-beam'; el.style.left = `${b.x}px`; el.style.top = `${b.y}px`;
+                battleZone.appendChild(el);
+            });
+        }
+
+        function triggerVictory() {
+            isGameOver = true;
+            if(spawnTimeout) { clearTimeout(spawnTimeout); spawnTimeout = null; }
+            playSound('victory');
+            document.getElementById('victory-score').innerHTML = String(score);
+            victoryScreen.classList.remove('hidden');
+        }
+
+        function triggerGameOver() {
+            isGameOver = true;
+            if(spawnTimeout) { clearTimeout(spawnTimeout); spawnTimeout = null; }
+            playSound('gameover');
+            document.getElementById('final-score').innerHTML = String(score);
+            gameoverScreen.classList.remove('hidden');
+        }
+
+        window.onload = () => { createGrid(); requestAnimationFrame(updateEngine); };
+    </script>
+</body>
+</html>
