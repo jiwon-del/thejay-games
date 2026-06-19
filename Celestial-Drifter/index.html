@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Celestial Drifter - Clean Build</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #010205;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            color: #fff;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            aspect-ratio: 1 / 1; 
+            box-shadow: 0 0 40px rgba(6, 182, 212, 0.2);
+            border: 2px solid rgba(6, 182, 212, 0.25);
+            background: #030510;
+            overflow: hidden;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(2, 4, 10, 0.97);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+            z-index: 10;
+        }
+        .hidden { display: none !important; }
+        
+        h1 {
+            font-size: 26px;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(45deg, #06b6d4, #a855f7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(6, 182, 212, 0.4);
+        }
+        
+        .subtitle { color: #94a3b8; font-size: 11px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;}
+        
+        .guide-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            text-align: left;
+            width: 100%;
+        }
+        .guide-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: #06b6d4;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+            padding-bottom: 3px;
+        }
+        .guide-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 8px;
+            font-size: 11.5px;
+            color: #cbd5e1;
+            line-height: 1.35;
+        }
+        .guide-item:last-child { margin-bottom: 0; }
+        .bullet {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            margin-right: 8px;
+            margin-top: 5px;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            background: transparent;
+            border: 2px solid #06b6d4;
+            color: #06b6d4;
+            padding: 10px 32px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.15);
+        }
+        .btn:hover {
+            background: #06b6d4;
+            color: #010205;
+            box-shadow: 0 0 25px rgba(6, 182, 212, 0.5);
+        }
+
+        #nos-btn-ui {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            width: 50px; 
+            height: 50px; 
+            background: rgba(3, 7, 20, 0.4);
+            border: 1.5px dashed rgba(0, 242, 254, 0.4);
+            border-radius: 50%;
+            color: rgba(0, 242, 254, 0.6);
+            font-weight: bold;
+            font-size: 9px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 5;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: all 0.2s ease;
+        }
+        #nos-btn-ui.ready {
+            border-style: solid;
+            border-color: #00f2fe;
+            background: linear-gradient(135deg, rgba(0, 242, 254, 0.8), rgba(168, 85, 247, 0.8));
+            color: #fff;
+            animation: pulseGlow 0.8s infinite alternate;
+        }
+        @keyframes pulseGlow {
+            from { box-shadow: 0 0 8px #00f2fe; transform: scale(1); }
+            to { box-shadow: 0 0 15px #a855f7; transform: scale(1.05); }
+        }
+        
+        /* FIX: Menambahkan properti standar background-clip agar VS Code tidak warning */
+        #game-over-title {
+            background: linear-gradient(45deg, #f43f5e, #fb923c);
+            -webkit-background-clip: text;
+            background-clip: text; 
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="menu-screen" class="overlay">
+        <h1>Celestial Drifter</h1>
+        <div class="subtitle">Deep Space Odyssey v2.7</div>
+        
+        <div class="guide-box">
+            <div class="guide-title">Flight Manual & Guide</div>
+            <div class="guide-item">
+                <div class="bullet" style="background:#38bdf8;"></div> 
+                <span><b>Steering:</b> Use <b>Left / Right Arrows</b> (or <b>A / D</b>) on PC, or <b>Tap Left / Right sides</b> of the screen on Mobile.</span>
+            </div>
+            <div class="guide-item">
+                <div class="bullet" style="background:#a855f7;"></div> 
+                <span><b>Scoring System:</b> Safely bypass any planet to score <b>+5 Points</b> and gain <b>+5% NOS Charge</b>.</span>
+            </div>
+            <div class="guide-item">
+                <div class="bullet" style="background:#00f2fe;"></div> 
+                <span><b>Hyperdrive NOS:</b> Once energy hits <b>100%</b>, press <b>SPACEBAR</b> on PC or tap the compact <b>NOS Button</b> on Mobile.</span>
+            </div>
+            <div class="guide-item">
+                <div class="bullet" style="background:#fb923c;"></div> 
+                <span><b>Annihilation Mode:</b> While NOS is active, you are <b>totally invincible</b>. Smashing into planets will <b>instantly explode and destroy them</b>!</span>
+            </div>
+        </div>
+
+        <button class="btn" onclick="startGame()">Engage Systems</button>
+    </div>
+
+    <div id="game-over-screen" class="overlay hidden">
+        <h1 id="game-over-title">Mission Aborted</h1>
+        <p>Vessel hull disintegrated. Quantum telemetry stream disconnected.</p>
+        <h2 style="margin: 15px 0; font-size: 24px; color: #06b6d4;">Final Score: <span id="final-score">0</span></h2>
+        <button class="btn" onclick="startGame()">Re-Ignition</button>
+    </div>
+
+    <div id="nos-btn-ui" class="hidden" ontouchstart="triggerNosFromUi(event)">NOS</div>
+
+    <canvas id="gameCanvas" width="600" height="600"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playMoveSound() {
+    if(nosActive) return;
+    let osc = audioCtx.createOscillator();
+    let gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(420, audioCtx.currentTime + 0.07);
+    gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.07);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.07);
+}
+
+function playExplosionSound() {
+    let osc = audioCtx.createOscillator();
+    let gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(90, audioCtx.currentTime);
+    osc.frequency.linearRampToValueAtTime(1, audioCtx.currentTime + 0.65);
+    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.65);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.65);
+}
+
+function playPlanetSmashSound() {
+    let osc = audioCtx.createOscillator();
+    let gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+}
+
+function playScoreSound() {
+    let osc = audioCtx.createOscillator();
+    let gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sine'; osc.frequency.setValueAtTime(900, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+}
+
+function playNosSound() {
+    let osc = audioCtx.createOscillator();
+    let gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(350, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1300, audioCtx.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 2.5);
+    osc.start(); osc.stop(audioCtx.currentTime + 2.5);
+}
+
+let score = 0;
+let gameRunning = false;
+let stars = [];
+let planets = [];
+let explosions = []; 
+let planetTimer = 0;
+
+let nosEnergy = 0; 
+let nosActive = false;
+let nosTimer = 0;
+
+const skyThemes = [
+    { bg: "#040612", glow: "#0b1536" }, 
+    { bg: "#0d0414", glow: "#260b3a" }, 
+    { bg: "#140310", glow: "#380a2a" }, 
+    { bg: "#140404", glow: "#3b0b0b" }  
+];
+
+const planetCatalog = [
+    { base: "#e056fd", shadow: "#681a80", ring: true, ringColor: "rgba(224,86,253,0.25)" },
+    { base: "#0984e3", shadow: "#0a3d62", ring: false, ringColor: "" },
+    { base: "#f0932b", shadow: "#b33939", ring: true, ringColor: "rgba(240,147,43,0.2)" },
+    { base: "#2ecc71", shadow: "#1b4d3e", ring: false, ringColor: "" },
+    { base: "#ff7675", shadow: "#c23616", ring: true, ringColor: "rgba(255,118,117,0.2)" }
+];
+
+let rocket = {
+    x: 284,
+    y: 450,       
+    width: 32,
+    height: 84,   
+    speed: 6.8,
+    movingLeft: false,
+    movingRight: false
+};
+
+for(let i=0; i<70; i++) {
+    stars.push({ x: Math.random()*600, y: Math.random()*600, size: Math.random()*2.5 });
+}
+
+window.addEventListener("keydown", (e) => {
+    if(!gameRunning) return;
+    if(e.key === "ArrowLeft" || e.key.toLowerCase() === "a") { rocket.movingLeft = true; playMoveSound(); }
+    if(e.key === "ArrowRight" || e.key.toLowerCase() === "d") { rocket.movingRight = true; playMoveSound(); }
+    if(e.key === " " && nosEnergy >= 100 && !nosActive) { activateNOS(); }
+});
+window.addEventListener("keyup", (e) => {
+    if(e.key === "ArrowLeft" || e.key.toLowerCase() === "a") rocket.movingLeft = false;
+    if(e.key === "ArrowRight" || e.key.toLowerCase() === "d") rocket.movingRight = false;
+});
+
+canvas.addEventListener("touchstart", (e) => {
+    if(!gameRunning) return;
+    const rect = canvas.getBoundingClientRect();
+    const touchX = ((e.touches[0].clientX - rect.left) / rect.width) * 600;
+    if(touchX < 300) { rocket.movingLeft = true; rocket.movingRight = false; }
+    else { rocket.movingRight = true; rocket.movingLeft = false; }
+    playMoveSound();
+}, {passive: true});
+
+canvas.addEventListener("touchend", () => {
+    rocket.movingLeft = false;
+    rocket.movingRight = false;
+});
+
+// FIX: Pengecekan event.cancelable untuk menghilangkan warning di konsol HP
+function triggerNosFromUi(event) {
+    if(event && event.cancelable) {
+        event.preventDefault();
+    }
+    if(nosEnergy >= 100 && !nosActive && gameRunning) {
+        activateNOS();
+    }
+}
+
+function activateNOS() {
+    nosActive = true;
+    nosEnergy = 100; 
+    nosTimer = 150;  
+    playNosSound();
+    document.getElementById("nos-btn-ui").classList.remove("ready");
+}
+
+class RealisticPlanet {
+    constructor() {
+        let proto = planetCatalog[Math.floor(Math.random() * planetCatalog.length)];
+        this.x = Math.random() * 460 + 70;
+        this.y = -80;
+        this.radius = Math.random() * 24 + 22;
+        this.speed = (3.5 + Math.random() * 2.5 + ((score / 10) * 0.15)) * (nosActive ? 3.5 : 1);
+        this.baseColor = proto.base;
+        this.shadowColor = proto.shadow;
+        this.hasRing = proto.ring;
+        this.ringColor = proto.ringColor;
+        this.scored = false;
+    }
+    draw() {
+        ctx.save();
+        if(this.hasRing) {
+            ctx.strokeStyle = this.ringColor;
+            ctx.lineWidth = 6;
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = this.baseColor;
+            ctx.beginPath();
+            ctx.ellipse(this.x, this.y, this.radius * 1.8, this.radius * 0.5, Math.PI / 6, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        let grad = ctx.createRadialGradient(
+            this.x - this.radius * 0.35, this.y - this.radius * 0.35, this.radius * 0.05, 
+            this.x, this.y, this.radius
+        );
+        grad.addColorStop(0, "#ffffff");
+        grad.addColorStop(0.25, this.baseColor); 
+        grad.addColorStop(0.85, this.shadowColor);
+        grad.addColorStop(1, "rgba(2,3,8,0.95)");
+
+        ctx.fillStyle = grad;
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = this.baseColor;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+    update() {
+        this.y += this.speed;
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.radius = Math.random() * 4 + 2;
+        this.speedX = (Math.random() - 0.5) * 12;
+        this.speedY = (Math.random() - 0.5) * 12;
+        this.color = color;
+        this.alpha = 1;
+        this.decay = Math.random() * 0.03 + 0.015;
+    }
+    draw() {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+    update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        this.alpha -= this.decay;
+    }
+}
+
+function createExplosion(x, y, color) {
+    playPlanetSmashSound();
+    for(let i = 0; i < 25; i++) {
+        explosions.push(new Particle(x, y, color));
+    }
+}
+
+function drawPlasmaLightning(rx, ry, rw, rh) {
+    ctx.save();
+    ctx.strokeStyle = Math.random() > 0.5 ? "#00ffff" : "#a855f7";
+    ctx.lineWidth = 2 + Math.random() * 2;
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = "#00ffff";
+
+    ctx.beginPath();
+    let currentY = ry - 40;
+    let currentX = rx - 20;
+    ctx.moveTo(currentX, currentY);
+    while(currentY < ry + rh + 40) {
+        currentY += 15 + Math.random() * 15;
+        currentX += (Math.random() - 0.5) * 25;
+        ctx.lineTo(currentX, currentY);
+    }
+    ctx.stroke();
+
+    ctx.beginPath();
+    currentY = ry - 40;
+    currentX = rx + rw + 20;
+    ctx.moveTo(currentX, currentY);
+    while(currentY < ry + rh + 40) {
+        currentY += 15 + Math.random() * 15;
+        currentX += (Math.random() - 0.5) * 25;
+        ctx.lineTo(currentX, currentY);
+    }
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawHighTierRocket() {
+    ctx.save();
+    let rx = rocket.x;
+    let ry = rocket.y;
+    let rw = rocket.width;
+    let rh = rocket.height;
+
+    if(nosActive && Math.random() > 0.15) {
+        drawPlasmaLightning(rx, ry, rw, rh);
+    }
+
+    if(gameRunning) {
+        let flFluc = Math.random() * 15;
+        let fireGrad = ctx.createLinearGradient(rx, ry + rh, rx, ry + rh + 30);
+        
+        if(nosActive) {
+            fireGrad.addColorStop(0, "#ffffff");
+            fireGrad.addColorStop(0.4, "#00ffff");
+            fireGrad.addColorStop(1, "transparent");
+            ctx.shadowColor = "#00f2fe";
+            flFluc += 25; 
+        } else {
+            fireGrad.addColorStop(0, "#facc15");
+            fireGrad.addColorStop(0.4, "#f97316");
+            fireGrad.addColorStop(1, "transparent");
+            ctx.shadowColor = "#f43f5e";
+        }
+        
+        ctx.fillStyle = fireGrad;
+        ctx.shadowBlur = 25;
+        ctx.fillRect(rx + 4, ry + rh - 2, 6, 20 + flFluc);
+        ctx.fillRect(rx + rw - 10, ry + rh - 2, 6, 20 + flFluc);
+    }
+
+    let bodyGrad = ctx.createLinearGradient(rx, ry, rx + rw, ry);
+    bodyGrad.addColorStop(0, nosActive ? "#93c5fd" : "#cbd5e1");
+    bodyGrad.addColorStop(0.5, "#ffffff");
+    bodyGrad.addColorStop(1, nosActive ? "#2563eb" : "#64748b");
+    ctx.fillStyle = bodyGrad;
+    ctx.shadowBlur = nosActive ? 30 : 15;
+    ctx.shadowColor = nosActive ? "#00ffff" : "#38bdf8";
+
+    ctx.beginPath();
+    ctx.moveTo(rx + rw / 2, ry); 
+    ctx.quadraticCurveTo(rx + rw, ry + rh * 0.3, rx + rw, ry + rh - 10);
+    ctx.lineTo(rx, ry + rh - 10);
+    ctx.quadraticCurveTo(rx, ry + rh * 0.3, rx + rw / 2, ry);
+    ctx.closePath();
+    ctx.fill();
+
+    let podGrad = ctx.createLinearGradient(rx - 4, ry, rx + rw + 4, ry);
+    podGrad.addColorStop(0, "#475569");
+    podGrad.addColorStop(1, "#94a3b8");
+    ctx.fillStyle = podGrad;
+    ctx.fillRect(rx + 2, ry + rh - 34, 5, 25);
+    ctx.fillRect(rx + rw - 7, ry + rh - 34, 5, 25);
+
+    ctx.fillStyle = nosActive ? "#00f2fe" : "#38bdf8";
+    ctx.beginPath();
+    ctx.moveTo(rx, ry + rh - 30);
+    ctx.lineTo(rx - 12, ry + rh - 4);
+    ctx.lineTo(rx, ry + rh - 12);
+    ctx.closePath(); ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(rx + rw, ry + rh - 30);
+    ctx.lineTo(rx + rw + 12, ry + rh - 4);
+    ctx.lineTo(rx + rw, ry + rh - 12);
+    ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = "#0284c7";
+    ctx.fillRect(rx + rw / 2 - 1.5, ry + rh * 0.4, 3, rh * 0.4);
+
+    ctx.fillStyle = "#0f172a";
+    ctx.strokeStyle = nosActive ? "#00ffff" : "#38bdf8";
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(rx + rw/2, ry + 26, 4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(rx + rw/2, ry + 42, 3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+    ctx.restore();
+}
+
+function checkCollision(r, p) {
+    let closestX = Math.max(r.x, Math.min(p.x, r.x + r.width));
+    let closestY = Math.max(r.y, Math.min(p.y, r.y + r.height));
+    let distSq = ((p.x - closestX) ** 2) + ((p.y - closestY) ** 2);
+    return distSq < (p.radius * p.radius - 8);
+}
+
+function startGame() {
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    document.getElementById("menu-screen").classList.add("hidden");
+    document.getElementById("game-over-screen").classList.add("hidden");
+    document.getElementById("nos-btn-ui").classList.remove("hidden");
+
+    score = 0;
+    nosEnergy = 0;
+    nosActive = false;
+    nosTimer = 0;
+    planets = [];
+    explosions = [];
+    rocket.x = 284;
+    rocket.movingLeft = false;
+    rocket.movingRight = false;
+    gameRunning = true;
+    update();
+}
+
+function endGame() {
+    gameRunning = false;
+    playExplosionSound();
+    document.getElementById("nos-btn-ui").classList.add("hidden");
+    document.getElementById("nos-btn-ui").classList.remove("ready");
+    document.getElementById("final-score").innerText = score;
+    document.getElementById("game-over-screen").classList.remove("hidden");
+}
+
+function update() {
+    if (!gameRunning) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if(nosActive) {
+        nosTimer--;
+        nosEnergy = (nosTimer / 150) * 100; 
+        if(nosTimer <= 0) {
+            nosActive = false;
+            nosEnergy = 0;
+        }
+    }
+    
+    let themeIndex = Math.floor(score / 50) % skyThemes.length; 
+    let currentTheme = skyThemes[themeIndex];
+    
+    let bgGrad = ctx.createLinearGradient(0, 0, 0, 600);
+    bgGrad.addColorStop(0, currentTheme.bg);
+    bgGrad.addColorStop(1, currentTheme.glow);
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, 600, 600);
+
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    stars.forEach(star => {
+        ctx.fillRect(star.x, star.y, star.size, star.size);
+        star.y += 1.1 * (nosActive ? 8 : 1); 
+        if(star.y > 600) star.y = 0;
+    });
+
+    if(rocket.movingLeft && rocket.x > 5) rocket.x -= rocket.speed;
+    if(rocket.movingRight && rocket.x < 600 - rocket.width - 5) rocket.x += rocket.speed;
+
+    drawHighTierRocket();
+
+    planetTimer += nosActive ? 3.5 : 1; 
+    if(planetTimer > Math.max(22, 40 - (score/10) * 0.8)) {
+        planets.push(new RealisticPlanet());
+        planetTimer = 0;
+    }
+
+    for(let i = planets.length - 1; i >= 0; i--) {
+        planets[i].update();
+        planets[i].draw();
+
+        if(checkCollision(rocket, planets[i])) {
+            if(nosActive) {
+                createExplosion(planets[i].x, planets[i].y, planets[i].baseColor);
+                planets.splice(i, 1);
+                score += 5; 
+                continue;
+            } else {
+                endGame();
+                return;
+            }
+        }
+
+        if(!planets[i].scored && planets[i].y > rocket.y) {
+            planets[i].scored = true;
+            score += 5; 
+            playScoreSound();
+            
+            if(!nosActive) {
+                nosEnergy = Math.min(100, nosEnergy + 5); 
+                if(nosEnergy >= 100) {
+                    document.getElementById("nos-btn-ui").classList.add("ready");
+                }
+            }
+        }
+
+        if(planets[i] && planets[i].y > 680) {
+            planets.splice(i, 1);
+        }
+    }
+
+    for (let i = explosions.length - 1; i >= 0; i--) {
+        explosions[i].update();
+        explosions[i].draw();
+        if (explosions[i].alpha <= 0) {
+            explosions.splice(i, 1);
+        }
+    }
+
+    ctx.fillStyle = "rgba(3, 5, 12, 0.85)";
+    ctx.fillRect(20, 20, 130, 35);
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.4)"; ctx.lineWidth = 1.5; ctx.strokeRect(20, 20, 130, 35);
+    ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px sans-serif";
+    ctx.fillText("SCORE: " + score, 32, 42);
+
+    ctx.fillStyle = "rgba(3, 5, 12, 0.85)";
+    ctx.fillRect(430, 20, 150, 35);
+    ctx.strokeStyle = nosEnergy >= 100 ? "#00f2fe" : "rgba(168, 85, 247, 0.4)";
+    ctx.strokeRect(430, 20, 150, 35);
+    
+    ctx.fillStyle = nosActive ? "#00ffff" : (nosEnergy >= 100 ? "#a855f7" : "#6366f1");
+    ctx.fillRect(440, 32, (nosEnergy / 100) * 130, 10);
+    ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px sans-serif";
+    ctx.fillText(nosActive ? "NOS ACTIVE!" : "NOS ENERGY: " + Math.floor(nosEnergy) + "%", 442, 29);
+
+    requestAnimationFrame(update);
+}
+</script>
+
+</body>
+</html>
