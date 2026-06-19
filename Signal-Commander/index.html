@@ -316,10 +316,11 @@ class Car {
     getCarInFront() {
         return cars.find(other => {
             if (other === this || other.direction !== this.direction) return false;
-            if (this.direction === 'N' && other.y > this.y && other.y < this.y + 90) return true;
-            if (this.direction === 'S' && other.y < this.y && other.y > this.y - 90) return true;
-            if (this.direction === 'W' && other.x > this.x && other.x < this.x + 90) return true;
-            if (this.direction === 'E' && other.x < this.x && other.x > this.x - 90) return true;
+            
+            if (this.direction === 'N' && other.y > this.y && other.y < this.y + 45) return true;
+            if (this.direction === 'S' && other.y < this.y && other.y > this.y - 45) return true;
+            if (this.direction === 'W' && other.x > this.x && other.x < this.x + 45) return true;
+            if (this.direction === 'E' && other.x < this.x && other.x > this.x - 45) return true;
             return false;
         });
     }
