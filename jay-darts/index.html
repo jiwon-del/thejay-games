@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>JAY DARTS</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-user-select:none;}
+body{
+background:#0f172a;
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+overflow:hidden;
+color:white;
+height:100vh;
+width:100vw;
+}
+.screen{
+position:absolute;
+inset:0;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+text-align:center;
+padding:24px;
+background:linear-gradient(to bottom,#1e40af,#0f172a);
+z-index:10;
+}
+h1{font-size:42px;letter-spacing:2px;margin-bottom:10px;text-shadow:0 4px 12px rgba(0,0,0,0.4)}
+p{max-width:420px;line-height:1.6;margin-bottom:25px;color:#93c5fd;font-size:15px}
+button{
+padding:14px 28px;
+margin:10px;
+border:none;
+border-radius:12px;
+font-weight:bold;
+font-size:16px;
+cursor:pointer;
+background:#facc15;
+color:#0f172a;
+box-shadow:0 4px 14px rgba(250,204,21,0.3);
+transition:transform 0.1s,background 0.2s;
+width:85%;
+max-width:260px;
+}
+button:active{transform:scale(0.98);background:#eab308}
+canvas{
+display:none;
+position:absolute;
+top:0;
+left:0;
+width:100%;
+height:100%;
+}
+#hud{
+display:none;
+position:absolute;
+top:0;
+left:0;
+width:100%;
+padding:15px;
+display:flex;
+justify-content:space-between;
+font-weight:900;
+font-size:16px;
+letter-spacing:1px;
+z-index:5;
+pointer-events:none;
+background:linear-gradient(to bottom,rgba(15,23,42,0.8),rgba(15,23,42,0));
+}
+.hud-box{background:rgba(255,255,255,0.1);padding:6px 12px;border-radius:8px;backdrop-filter:blur(4px)}
+@media(min-width:768px){
+#hud{font-size:22px;padding:20px}
+.hud-box{padding:8px 16px}
+}
+</style>
+</head>
+<body>
+
+<div id="menu" class="screen">
+<h1>JAY DARTS</h1>
+<p>Pull back the dart like a slingshot, aim the laser carefully, and smash the bullseye! Reach 200 points to win.</p>
+<button onclick="startGame()">START GAME</button>
+<button onclick="showHow()">HOW TO PLAY</button>
+<div id="menuHigh" style="margin-top:20px;font-weight:bold;color:#facc15"></div>
+</div>
+
+<div id="how" class="screen" style="display:none">
+<h1>HOW TO PLAY</h1>
+<p style="text-align:left;display:inline-block;max-width:320px;font-size:16px;line-height:2">
+🎯 Touch the dart and pull it BACKWARD like a slingshot.<br>
+🎯 The green laser will point FORWARD to show your target.<br>
+🎯 Release your finger to throw.<br>
+🎯 Yellow Center (Bullseye) = 20 Points.<br>
+🎯 Outer Rings = 15, 10, 5 Points.<br>
+🎯 Score 200 Points to WIN!
+</p>
+<button onclick="backMenu()">BACK</button>
+</div>
+
+<div id="gameOver" class="screen" style="display:none">
+<h1 style="color:#ef4444">GAME OVER</h1>
+<p style="color:#94a3b8; margin-bottom:10px;">You ran out of darts before reaching 200 points.</p>
+<h2 id="finalScore" style="margin:5px 0 5px 0"></h2>
+<h3 id="finalHigh" style="color:#facc15;margin-bottom:25px"></h3>
+<button onclick="restart()">TRY AGAIN</button>
+<button onclick="mainMenu()">MAIN MENU</button>
+</div>
+
+<div id="winner" class="screen" style="display:none; background:linear-gradient(to bottom,#15803d,#0f172a)">
+<h1 style="color:#4ade80; text-shadow:0 0 20px rgba(74,222,128,0.5)">🏆 WINNER! 🏆</h1>
+<p style="color:#bbf7d0; font-size:18px;">Amazing! You successfully reached the 200 points target!</p>
+<h2 id="winScore" style="margin:5px 0 5px 0; color:#fff"></h2>
+<h3 id="winHigh" style="color:#facc15;margin-bottom:25px"></h3>
+<button onclick="restart()">PLAY AGAIN</button>
+<button onclick="mainMenu()">MAIN MENU</button>
+</div>
+
+<div id="hud">
+<div class="hud-box" id="score">SCORE: 0</div>
+<div class="hud-box" id="darts" style="color:#facc15">DARTS: 10</div>
+<div class="hud-box" id="high">HIGH: 0</div>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+const board={x:0,y:0,r:120,isVertical:false};
+const dart={x:0,y:0,vx:0,vy:0,flying:false,targetX:0,targetY:0,angle:0};
+let score=0,dartsLeft=10,dragging=false,running=false;
+let pullX=0,pullY=0;
+let highScore=parseInt(localStorage.getItem("jayDartsHigh")||0);
+
+const menu=document.getElementById("menu");
+const how=document.getElementById("how");
+const gameOver=document.getElementById("gameOver");
+const winner=document.getElementById("winner");
+const hud=document.getElementById("hud");
+const scoreEl=document.getElementById("score");
+const dartsEl=document.getElementById("darts");
+const highEl=document.getElementById("high");
+
+document.getElementById("menuHigh").textContent="HIGH SCORE: "+highScore;
+highEl.textContent="HIGH: "+highScore;
+
+function getPositions() {
+    let startX, startY;
+    if(canvas.height > canvas.width) {
+        startX = canvas.width * 0.5;
+        startY = canvas.height * 0.82;
+    } else {
+        startX = canvas.width * 0.18;
+        startY = canvas.height * 0.78;
+    }
+    return {startX, startY};
+}
+
+function resize(){
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+
+if(canvas.height > canvas.width) {
+    board.isVertical = true;
+    board.r = Math.min(canvas.width * 0.24, 110); 
+    board.x = canvas.width * 0.5;                
+    board.y = canvas.height * 0.28;               
+} else {
+    board.isVertical = false;
+    board.r = Math.min(canvas.height * 0.24, 130);
+    board.x = canvas.width * 0.75;               
+    board.y = canvas.height * 0.45;
+}
+
+if(!dart.flying) {
+    const {startX, startY} = getPositions();
+    dart.x = startX;
+    dart.y = startY;
+}
+}
+window.addEventListener("resize",resize);
+resize();
+
+function showHow(){menu.style.display="none";how.style.display="flex";}
+function backMenu(){how.style.display="none";menu.style.display="flex";}
+
+function startGame() {
+menu.style.display="none";
+gameOver.style.display="none";
+winner.style.display="none";
+canvas.style.display="block";
+hud.style.display="flex";
+score=0;
+dartsLeft=10;
+updateHud();
+resetDart();
+running=true;
+}
+
+function restart(){startGame();}
+
+function mainMenu(){
+gameOver.style.display="none";
+winner.style.display="none";
+canvas.style.display="none";
+hud.style.display="none";
+menu.style.display="flex";
+document.getElementById("menuHigh").textContent="HIGH SCORE: "+highScore;
+}
+
+function updateHud(){
+scoreEl.textContent="SCORE: "+score;
+dartsEl.textContent="DARTS: "+dartsLeft;
+highEl.textContent="HIGH: "+highScore;
+}
+
+function resetDart(){
+resize(); 
+dart.vx=0;
+dart.vy=0;
+dart.flying=false;
+dragging=false;
+}
+
+function pos(e){
+const r=canvas.getBoundingClientRect();
+if(e.touches && e.touches.length > 0) {
+    return {x:e.touches[0].clientX-r.left,y:e.touches[0].clientY-r.top};
+} else if (e.changedTouches && e.changedTouches.length > 0) {
+    return {x:e.changedTouches[0].clientX-r.left,y:e.changedTouches[0].clientY-r.top};
+}
+return {x:e.clientX-r.left,y:e.clientY-r.top};
+}
+
+canvas.addEventListener("mousedown",down);
+canvas.addEventListener("mousemove",move);
+canvas.addEventListener("mouseup",up);
+canvas.addEventListener("touchstart",down, {passive: false});
+canvas.addEventListener("touchmove",move, {passive: false});
+canvas.addEventListener("touchend",up, {passive: false});
+
+function down(e){
+if(dart.flying||dartsLeft<=0||!running)return;
+dragging=true;
+let p=pos(e);
+pullX=p.x;
+pullY=p.y;
+e.preventDefault();
+}
+
+function move(e){
+if(!dragging)return;
+let p=pos(e);
+pullX=p.x;
+pullY=p.y;
+e.preventDefault();
+}
+
+function up(e){
+if(!dragging)return;
+dragging=false;
+
+let p=pos(e);
+if(p && !isNaN(p.x) && !isNaN(p.y)){
+    pullX=p.x;
+    pullY=p.y;
+}
+
+const {startX, startY} = getPositions();
+let angle = Math.atan2(startY - pullY, startX - pullX);
+
+let t = ((board.x - startX) * Math.cos(angle) + (board.y - startY) * Math.sin(angle));
+if(t < 0) t = 0;
+
+let targetX = startX + Math.cos(angle) * t;
+let targetY = startY + Math.sin(angle) * t;
+
+let speed = 25;
+dart.vx = Math.cos(angle) * speed;
+dart.vy = Math.sin(angle) * speed;
+dart.targetX = targetX;
+dart.targetY = targetY;
+dart.angle = angle;
+dart.flying = true;
+
+dartsLeft--;
+updateHud();
+}
+
+function scoreHit(hitX, hitY){
+let dist=Math.hypot(hitX-board.x,hitY-board.y);
+let ratio = board.r / 120; 
+let pts=0;
+
+if(dist < 15 * ratio) pts=20;       
+else if(dist < 40 * ratio) pts=15;  
+else if(dist < 75 * ratio) pts=10;  
+else if(dist <= board.r + 5) pts=5; 
+
+score+=pts;
+
+if(score>highScore){
+highScore=score;
+localStorage.setItem("jayDartsHigh",highScore);
+}
+updateHud();
+
+setTimeout(()=>{
+// MODIFIKASI DISINI: Menang jika skor mencapai 200 atau lebih
+if(score >= 200) {
+    document.getElementById("winScore").textContent="FINAL SCORE: "+score;
+    document.getElementById("winHigh").textContent="HIGH SCORE: "+highScore;
+    winner.style.display="flex";
+    running=false;
+} 
+else if(dartsLeft<=0){
+    document.getElementById("finalScore").textContent="FINAL SCORE: "+score;
+    document.getElementById("finalHigh").textContent="HIGH SCORE: "+highScore;
+    gameOver.style.display="flex";
+    running=false;
+} else {
+    resetDart();
+}
+},600);
+}
+
+function drawBoard(){
+ctx.save();
+ctx.translate(board.x,board.y);
+ctx.shadowColor="rgba(0,0,0,0.6)";
+ctx.shadowBlur=20;
+
+let step = board.r / 4;
+let count = 0;
+for(let r=board.r; r>0; r-=step){
+ctx.fillStyle=(count%2===1)?"#e11d48":"#ffffff";
+ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();
+count++;
+}
+ctx.fillStyle="#2563eb";
+ctx.beginPath();ctx.arc(0,0,board.r*0.375,0,Math.PI*2);ctx.fill();
+ctx.fillStyle="#facc15";
+ctx.beginPath();ctx.arc(0,0,board.r*0.125,0,Math.PI*2);ctx.fill();
+
+ctx.restore();
+}
+
+function drawDart(){
+ctx.save();
+ctx.translate(dart.x,dart.y);
+
+let currentAngle = dart.flying ? Math.atan2(dart.vy, dart.vx) : (board.isVertical ? -Math.PI/2 : -0.4);
+if(dragging) {
+    const {startX, startY} = getPositions();
+    currentAngle = Math.atan2(startY - pullY, startX - pullX);
+}
+ctx.rotate(currentAngle);
+
+ctx.fillStyle="#cfd8dc";
+ctx.fillRect(-22,-3,26,6);
+
+ctx.fillStyle="#ffd54f";
+ctx.beginPath();
+ctx.moveTo(4,0);
+ctx.lineTo(16,-5);
+ctx.lineTo(16,5);
+ctx.closePath();
+ctx.fill();
+
+ctx.fillStyle="#3b82f6";
+ctx.beginPath();
+ctx.moveTo(-22,0);ctx.lineTo(-34,-9);ctx.lineTo(-28,0);ctx.closePath();ctx.fill();
+ctx.beginPath();
+ctx.moveTo(-22,0);ctx.lineTo(-34,9);ctx.lineTo(-28,0);ctx.closePath();ctx.fill();
+
+ctx.restore();
+}
+
+function drawPrediction(){
+if(!dragging)return;
+const {startX, startY} = getPositions();
+let angle = Math.atan2(startY - pullY, startX - pullX);
+
+ctx.save();
+ctx.strokeStyle="rgba(34, 197, 94, 0.7)";
+ctx.lineWidth=3;
+ctx.setLineDash([6, 6]);
+
+ctx.beginPath();
+ctx.moveTo(startX, startY);
+let t = ((board.x - startX) * Math.cos(angle) + (board.y - startY) * Math.sin(angle));
+if(t < 0) t = 0;
+
+let targetX = startX + Math.cos(angle) * t;
+let targetY = startY + Math.sin(angle) * t;
+
+ctx.lineTo(targetX, targetY);
+ctx.stroke();
+
+ctx.fillStyle="#22c55e";
+ctx.beginPath();
+ctx.arc(targetX, targetY, 5, 0, Math.PI*2);
+ctx.fill();
+
+ctx.restore();
+}
+
+function loop(){
+requestAnimationFrame(loop);
+if(!running)return;
+
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+let bg=ctx.createLinearGradient(0,0,0,canvas.height);
+bg.addColorStop(0,"#1e3a8a");
+bg.addColorStop(1,"#0f172a");
+ctx.fillStyle=bg;
+ctx.fillRect(0,0,canvas.width,canvas.height);
+
+let glow=ctx.createRadialGradient(board.x,board.y,10,board.x,board.y,board.r*2);
+glow.addColorStop(0,"rgba(255,255,255,0.15)");
+glow.addColorStop(1,"rgba(255,255,255,0)");
+ctx.fillStyle=glow;
+ctx.beginPath();
+ctx.arc(board.x,board.y,board.r*2,0,Math.PI*2);
+ctx.fill();
+
+for(let i=0;i<10;i++){
+ctx.fillStyle="rgba(250,204,21,0.6)";
+ctx.beginPath();
+ctx.arc((i+1)*(canvas.width/11),40,4,0,Math.PI*2);
+ctx.fill();
+}
+
+ctx.fillStyle="#1e293b";
+if(board.isVertical) {
+    ctx.fillRect(board.x-(board.r*1.3), board.y-(board.r*1.3), board.r*2.6, board.r*2.6);
+} else {
+    ctx.fillRect(board.x-(board.r*1.4), board.y-(board.r*1.4), board.r*2.8, board.r*2.8);
+}
+
+drawBoard();
+drawPrediction();
+drawDart();
+
+if(dart.flying){
+    dart.x+=dart.vx;
+    dart.y+=dart.vy;
+
+    let angle=Math.atan2(dart.vy,dart.vx);
+    let tipX = dart.x + Math.cos(angle) * 16;
+    let tipY = dart.y + Math.sin(angle) * 16;
+
+    let distToTarget = Math.hypot(tipX - dart.targetX, tipY - dart.targetY);
+
+    if(distToTarget < 20) {
+        dart.flying = false;
+        scoreHit(dart.targetX, dart.targetY);
+    }
+}
+}
+loop();
+</script>
+</body>
+</html>
