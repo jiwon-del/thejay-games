@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Puzzle Master: Animal Edition</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
+        body {
+            background: #0d0f12;
+            color: #fff;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 15px;
+            touch-action: none;
+        }
+
+        h1 {
+            color: #ffaa00;
+            text-shadow: 0 0 15px rgba(255, 170, 0, 0.4);
+            font-size: 26px;
+            margin-bottom: 5px;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        #top-hud {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .hud-val {
+            background: rgba(255, 170, 0, 0.1);
+            border: 1px solid #ffaa00;
+            padding: 6px 16px;
+            border-radius: 8px;
+            color: #ffaa00;
+            font-size: 14px;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        #timer-display {
+            color: #ff3333;
+            border-color: #ff3333;
+            background: rgba(255, 51, 51, 0.1);
+            text-shadow: 0 0 5px rgba(255, 51, 51, 0.5);
+        }
+
+        #game-container {
+            position: relative;
+            background: #1a1d24;
+            border: 3px solid #ffaa00;
+            border-radius: 16px;
+            box-shadow: 0 0 35px rgba(255, 170, 0, 0.25);
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #puzzle-board {
+            width: 320px;
+            height: 320px;
+            position: relative;
+            background: #252a34;
+            border: 2px solid #444;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .tile {
+            position: absolute;
+            border: 1.5px solid #1a1d24;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: left 0.15s ease, top 0.15s ease;
+        }
+
+        .tile canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .tile-number {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            border: 1px solid #ffaa00;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        #ui-panel {
+            margin-top: 12px;
+            display: flex;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 10px 30px;
+            font-weight: bold;
+            color: #1a1d24;
+            background: linear-gradient(45deg, #ffaa00, #ffcc66);
+            border: 1px solid #fff;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 4px 10px rgba(255, 170, 0, 0.2);
+            transition: transform 0.1s;
+        }
+        .btn:active { transform: scale(0.96); }
+
+        /* Full Screen Menus */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(20, 23, 30, 0.98);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            border-radius: 12px;
+            text-align: center;
+            padding: 25px;
+        }
+
+        .overlay h2 { margin-bottom: 12px; font-size: 26px; font-weight: bold; }
+        
+        .guide-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 170, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: left;
+            font-size: 13px;
+            color: #ccc;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            max-width: 280px;
+        }
+        .guide-box ul { margin-left: 18px; }
+
+        @media (max-width: 380px) {
+            #puzzle-board { width: 280px; height: 280px; }
+            h1 { font-size: 22px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>ANIMAL PUZZLE MASTER</h1>
+    <div id="top-hud">
+        <div id="stage-display" class="hud-val">🐱 Stage: 1/3</div>
+        <div id="timer-display" class="hud-val">⏱️ 01:00</div>
+        <div id="score-display" class="hud-val">🏆 Score: 0</div>
+    </div>
+
+    <div id="game-container">
+        <!-- Main Menu / Instruction Screen -->
+        <div id="start-overlay" class="overlay">
+            <h2 style="color: #ffaa00;">WELCOME MASTER</h2>
+            <div class="guide-box">
+                <b style="color: #fff;">HOW TO PLAY:</b><br>
+                <ul>
+                    <li>Tap adjacent image tiles to slide them into the empty slot.</li>
+                    <li>Rearrange the numbers sequentially to reveal the cute cat asset!</li>
+                    <li>Beat all 3 escalating grid stages before time expires.</li>
+                </ul>
+            </div>
+            <button class="btn" onclick="startGame()">START GAME</button>
+        </div>
+
+        <!-- Next Stage / Win Screen -->
+        <div id="win-overlay" class="overlay" style="display: none;">
+            <h2 id="win-title" style="color: #00ffcc;">STAGE CLEARED!</h2>
+            <p id="win-desc" style="color: #ffaa00; margin-bottom: 20px; font-weight: bold;">+50 Score Awarded!</p>
+            <button id="win-btn" class="btn" onclick="nextAction()">NEXT STAGE</button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="lose-overlay" class="overlay" style="display: none;">
+            <h2 style="color: #ff3333; text-shadow: 0 0 10px rgba(255,51,51,0.3);">GAME OVER</h2>
+            <p style="color: #aaa; margin-bottom: 20px;">Time ran out! Try again to improve your skill.</p>
+            <button class="btn" onclick="resetToMainMenu()">MAIN MENU</button>
+        </div>
+
+        <!-- Puzzle Board -->
+        <div id="puzzle-board"></div>
+
+        <!-- Bottom Controls -->
+        <div id="ui-panel">
+            <button class="btn" onclick="scrambleBoard()">SHUFFLE</button>
+        </div>
+    </div>
+
+    <canvas id="sourceCanvas" width="400" height="400" style="display:none;"></canvas>
+
+    <script>
+        const board = document.getElementById("puzzle-board");
+        const sourceCanvas = document.getElementById("sourceCanvas");
+        const sCtx = sourceCanvas.getContext("2d");
+
+        let currentStage = 1;
+        let score = 0;
+        let gridSize = 3; 
+        let tiles = [];
+        let emptyTile = { row: 2, col: 2 };
+        let isWinned = false;
+        
+        // Timer configurations
+        let timerInterval = null;
+        let timeLeft = 60; // seconds
+
+        function getStageTime(stage) {
+            if (stage === 1) return 60;       // 1 minute
+            if (stage === 2) return 120;      // 2 minutes
+            return 300;                       // 5 minutes for Stage 3
+        }
+
+        function formatTime(seconds) {
+            let mins = Math.floor(seconds / 60);
+            let secs = seconds % 60;
+            return `⏱️ ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            document.getElementById("timer-display").innerText = formatTime(timeLeft);
+            
+            timerInterval = setInterval(() => {
+                if (isWinned) return;
+                timeLeft--;
+                document.getElementById("timer-display").innerText = formatTime(timeLeft);
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    handleGameOver();
+                }
+            }, 1000);
+        }
+
+        function handleGameOver() {
+            document.getElementById("lose-overlay").style.display = "flex";
+        }
+
+        function startGame() {
+            document.getElementById("start-overlay").style.display = "none";
+            currentStage = 1;
+            score = 0;
+            initGame();
+        }
+
+        function resetToMainMenu() {
+            document.getElementById("lose-overlay").style.display = "none";
+            document.getElementById("win-overlay").style.display = "none";
+            document.getElementById("start-overlay").style.display = "flex";
+            clearInterval(timerInterval);
+        }
+
+        function drawAnimalImage() {
+            sCtx.fillStyle = "#3a4454";
+            sCtx.fillRect(0, 0, 400, 400);
+
+            // Left Ear
+            sCtx.fillStyle = "#e67e22";
+            sCtx.beginPath(); sCtx.moveTo(100, 160); sCtx.lineTo(120, 70); sCtx.lineTo(170, 130); sCtx.fill();
+            sCtx.fillStyle = "#ff9f43";
+            sCtx.beginPath(); sCtx.moveTo(110, 150); sCtx.lineTo(125, 85); sCtx.lineTo(160, 130); sCtx.fill();
+
+            // Right Ear
+            sCtx.fillStyle = "#e67e22";
+            sCtx.beginPath(); sCtx.moveTo(300, 160); sCtx.lineTo(280, 70); sCtx.lineTo(230, 130); sCtx.fill();
+            sCtx.fillStyle = "#ff9f43";
+            sCtx.beginPath(); sCtx.moveTo(290, 150); sCtx.lineTo(275, 85); sCtx.lineTo(240, 130); sCtx.fill();
+
+            // Main Head Face
+            sCtx.fillStyle = "#ff9f43";
+            sCtx.beginPath(); sCtx.arc(200, 210, 95, 0, Math.PI * 2); sCtx.fill();
+
+            // White Muzzle
+            sCtx.fillStyle = "#ffffff";
+            sCtx.beginPath(); sCtx.arc(200, 240, 35, 0, Math.PI * 2); sCtx.fill();
+
+            // Left Eye
+            sCtx.fillStyle = "#2c3e50";
+            sCtx.beginPath(); sCtx.arc(160, 195, 14, 0, Math.PI * 2); sCtx.fill();
+            sCtx.fillStyle = "#ffffff";
+            sCtx.beginPath(); sCtx.arc(156, 191, 5, 0, Math.PI * 2); sCtx.fill();
+
+            // Right Eye
+            sCtx.fillStyle = "#2c3e50";
+            sCtx.beginPath(); sCtx.arc(240, 195, 14, 0, Math.PI * 2); sCtx.fill();
+            sCtx.fillStyle = "#ffffff";
+            sCtx.beginPath(); sCtx.arc(236, 191, 5, 0, Math.PI * 2); sCtx.fill();
+
+            // Pink Nose
+            sCtx.fillStyle = "#ff82aa";
+            sCtx.beginPath(); sCtx.moveTo(190, 225); sCtx.lineTo(210, 225); sCtx.lineTo(200, 237); sCtx.closePath(); sCtx.fill();
+
+            // Whiskers
+            sCtx.strokeStyle = "#ffffff";
+            sCtx.lineWidth = 3;
+            sCtx.beginPath(); sCtx.moveTo(150, 235); sCtx.lineTo(80, 225); sCtx.stroke();
+            sCtx.beginPath(); sCtx.moveTo(150, 245); sCtx.lineTo(75, 250); sCtx.stroke();
+            sCtx.beginPath(); sCtx.moveTo(250, 235); sCtx.lineTo(320, 225); sCtx.stroke();
+            sCtx.beginPath(); sCtx.moveTo(250, 245); sCtx.lineTo(325, 250); sCtx.stroke();
+        }
+
+        function initGame() {
+            // Stage 1 & 2 are both 3x3, Stage 3 scales to 4x4
+            if (currentStage === 1 || currentStage === 2) gridSize = 3; 
+            else if (currentStage === 3) gridSize = 4; 
+
+            document.getElementById("stage-display").innerText = `🐱 Stage: ${currentStage}/3`;
+            document.getElementById("score-display").innerText = `🏆 Score: ${score}`;
+            document.getElementById("win-overlay").style.display = "none";
+            document.getElementById("lose-overlay").style.display = "none";
+            
+            isWinned = false;
+            board.innerHTML = "";
+            tiles = [];
+            
+            let boardSize = board.clientWidth;
+            let tileSize = boardSize / gridSize;
+
+            drawAnimalImage();
+
+            let numberId = 1;
+            let sourceTileSize = 400 / gridSize;
+
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if (r === gridSize - 1 && c === gridSize - 1) continue; 
+
+                    let tile = document.createElement("div");
+                    tile.classList.add("tile");
+                    tile.style.width = `${tileSize}px`;
+                    tile.style.height = `${tileSize}px`;
+                    tile.style.left = `${c * tileSize}px`;
+                    tile.style.top = `${r * tileSize}px`;
+
+                    let tileCanvas = document.createElement("canvas");
+                    tileCanvas.width = sourceTileSize;
+                    tileCanvas.height = sourceTileSize;
+                    let tcCtx = tileCanvas.getContext("2d");
+                    tcCtx.drawImage(sourceCanvas, c * sourceTileSize, r * sourceTileSize, sourceTileSize, sourceTileSize, 0, 0, sourceTileSize, sourceTileSize);
+                    tile.appendChild(tileCanvas);
+
+                    let numLabel = document.createElement("div");
+                    numLabel.classList.add("tile-number");
+                    numLabel.innerText = numberId++;
+                    tile.appendChild(numLabel);
+
+                    let tileObj = {
+                        el: tile,
+                        currentPos: { row: r, col: c },
+                        correctPos: { row: r, col: c }
+                    };
+
+                    const handleMove = () => moveTile(tileObj);
+                    tile.addEventListener("click", handleMove);
+                    tile.addEventListener("touchstart", (e) => { e.preventDefault(); handleMove(); }, {passive: false});
+
+                    board.appendChild(tile);
+                    tiles.push(tileObj);
+                }
+            }
+            emptyTile = { row: gridSize - 1, col: gridSize - 1 };
+            scrambleBoard();
+
+            timeLeft = getStageTime(currentStage);
+            startTimer();
+        }
+
+        function moveTile(tile) {
+            if (isWinned || timeLeft <= 0) return;
+
+            let rDiff = Math.abs(tile.currentPos.row - emptyTile.row);
+            let cDiff = Math.abs(tile.currentPos.col - emptyTile.col);
+
+            if ((rDiff === 1 && cDiff === 0) || (rDiff === 0 && cDiff === 1)) {
+                let tempRow = tile.currentPos.row;
+                let tempCol = tile.currentPos.col;
+
+                tile.currentPos.row = emptyTile.row;
+                tile.currentPos.col = emptyTile.col;
+                emptyTile.row = tempRow;
+                emptyTile.col = tempCol;
+
+                let tileSize = board.clientWidth / gridSize;
+                tile.el.style.left = `${tile.currentPos.col * tileSize}px`;
+                tile.el.style.top = `${tile.currentPos.row * tileSize}px`;
+
+                checkWin();
+            }
+        }
+
+        function scrambleBoard() {
+            if(isWinned) return;
+            
+            // DYNAMIC DIFFICULTY CONFIGURATION
+            let totalShuffles = 50; 
+            if (currentStage === 1) totalShuffles = 8;  // Light shuffling: balanced and solvable in a few steps!
+            else if (currentStage === 2) totalShuffles = 50;
+            else if (currentStage === 3) totalShuffles = 120;
+
+            for (let i = 0; i < totalShuffles; i++) {
+                let validNeighbors = tiles.filter(tile => {
+                    let rDiff = Math.abs(tile.currentPos.row - emptyTile.row);
+                    let cDiff = Math.abs(tile.currentPos.col - emptyTile.col);
+                    return (rDiff === 1 && cDiff === 0) || (rDiff === 0 && cDiff === 1);
+                });
+
+                let randomTile = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+                
+                let tempRow = randomTile.currentPos.row;
+                let tempCol = randomTile.currentPos.col;
+                randomTile.currentPos.row = emptyTile.row;
+                randomTile.currentPos.col = emptyTile.col;
+                emptyTile.row = tempRow;
+                emptyTile.col = tempCol;
+            }
+
+            let tileSize = board.clientWidth / gridSize;
+            tiles.forEach(tile => {
+                tile.el.style.left = `${tile.currentPos.col * tileSize}px`;
+                tile.el.style.top = `${tile.currentPos.row * tileSize}px`;
+            });
+        }
+
+        function checkWin() {
+            let win = tiles.every(tile => {
+                return tile.currentPos.row === tile.correctPos.row && 
+                       tile.currentPos.col === tile.correctPos.col;
+            });
+
+            if (win) {
+                isWinned = true;
+                clearInterval(timerInterval);
+                score += 50; 
+                document.getElementById("score-display").innerText = `🏆 Score: ${score}`;
+
+                let overlay = document.getElementById("win-overlay");
+                let title = document.getElementById("win-title");
+                let btn = document.getElementById("win-btn");
+
+                if (currentStage < 3) {
+                    title.innerText = `🎉 STAGE ${currentStage} CLEARED!`;
+                    btn.innerText = "NEXT STAGE";
+                } else {
+                    title.innerText = "🏆 GRAND CHAMPION!";
+                    title.style.color = "#ffaa00";
+                    btn.innerText = "PLAY AGAIN";
+                }
+                overlay.style.display = "flex";
+            }
+        }
+
+        function nextAction() {
+            if (currentStage < 3) {
+                currentStage++;
+                initGame();
+            } else {
+                resetToMainMenu();
+            }
+        }
+    </script>
+</body>
+</html>
