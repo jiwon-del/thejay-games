@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Arcane vs Ghouls: Boss & Mobile Edition</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
+        html, body { width: 100%; height: 100%; touch-action: none; background: #0c0808; }
+        body { color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; padding: 10px; }
+
+        #game-container {
+            position: relative;
+            width: 950px;
+            height: 620px;
+            background: #111;
+            border: 3px solid #ff4500;
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(255, 69, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top HUD Bar - Responsive Layout */
+        #top-hud {
+            width: 100%;
+            background: #141111;
+            border-bottom: 2px solid #ff4500;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        #shop-cards { display: flex; gap: 6px; flex-wrap: nowrap; }
+        .card {
+            width: 72px;
+            height: 72px;
+            background: rgba(30, 20, 20, 0.9);
+            border: 2px solid #555;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 9px;
+            font-weight: bold;
+            transition: 0.1s;
+        }
+        .card.active { border-color: #00ffff; box-shadow: 0 0 10px #00ffff; background: rgba(20, 40, 40, 0.9); }
+        .card .icon { font-size: 18px; margin-bottom: 1px; }
+        .card .cost { color: #ffaa00; font-size: 10px; }
+
+        #stats-panel { display: flex; gap: 8px; font-weight: bold; font-size: 12px; }
+        .hud-value {
+            background: rgba(10, 5, 5, 0.9);
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #ff4500;
+            color: #ffaa00;
+            text-shadow: 0 0 6px #ff5500;
+            white-space: nowrap;
+        }
+
+        #canvas-wrapper { width: 100%; flex-grow: 1; position: relative; background: #112213; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* Menu Systems */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(6, 2, 2, 0.97);
+            border-radius: 14px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 20; text-align: center; padding: 25px;
+        }
+        .screen h1 { font-size: 40px; color: #ff4500; text-shadow: 0 0 25px #ff0000; margin-bottom: 15px; }
+        
+        .guide-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 69, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: left;
+            font-size: 13px;
+            max-width: 550px;
+            margin-bottom: 20px;
+            color: #ddd;
+            line-height: 1.5;
+        }
+        .guide-box ul { margin-left: 20px; }
+        .guide-box li { margin-bottom: 5px; }
+
+        .btn-action {
+            padding: 12px 40px; font-size: 16px; font-weight: bold; color: white;
+            background: linear-gradient(45deg, #990000, #ff4500); border: 2px solid #ffd700;
+            border-radius: 25px; cursor: pointer; box-shadow: 0 0 20px rgba(255, 69, 0, 0.4);
+        }
+
+        #wave-banner {
+            position: absolute;
+            top: 40%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 44px; font-weight: bold; color: #ff2200;
+            text-shadow: 0 0 20px #000; z-index: 15; display: none;
+            pointer-events: none; text-align: center; animation: zoomWave 2.2s ease-in-out;
+        }
+
+        @keyframes zoomWave {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            30% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            70% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.4); opacity: 0; }
+        }
+
+        /* RESPONSIVE MEDIA FOR MOBILE & TABLET SUPPORT */
+        @media (max-width: 960px) {
+            #game-container { width: 100%; height: auto; min-height: 480px; }
+            #top-hud { flex-direction: column; justify-content: center; gap: 8px; padding: 6px; }
+            #shop-cards { width: 100%; justify-content: center; }
+            .card { width: 56px; height: 58px; font-size: 7px; }
+            .card .icon { font-size: 14px; }
+            #stats-panel { width: 100%; justify-content: center; }
+            .hud-value { padding: 4px 8px; font-size: 9px; }
+            .screen h1 { font-size: 24px; }
+            .guide-box { font-size: 11px; }
+            #wave-banner { font-size: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="top-hud">
+            <div id="shop-cards">
+                <div class="card" id="card-sun" onclick="selectPlant('sun')">
+                    <span class="icon">🌻</span><span>Sun Mage</span><span class="cost">50</span>
+                </div>
+                <div class="card" id="card-fire" onclick="selectPlant('fire')">
+                    <span class="icon">🔥</span><span>Fire Pea</span><span class="cost">100</span>
+                </div>
+                <div class="card" id="card-ice" onclick="selectPlant('ice')">
+                    <span class="icon">❄️</span><span>Ice Pea</span><span class="cost">175</span>
+                </div>
+                <div class="card" id="card-doom" onclick="selectPlant('doom')">
+                    <span class="icon">🚀</span><span>Mortar</span><span class="cost">225</span>
+                </div>
+                <div class="card" id="card-nut" onclick="selectPlant('nut')">
+                    <span class="icon">🛡️</span><span>Wall-Nut</span><span class="cost">150</span>
+                </div>
+            </div>
+
+            <div id="stats-panel">
+                <div id="energy-display" class="hud-value">☀️ 150</div>
+                <div id="wave-display" class="hud-value">🌊 Wave: 1</div>
+                <div id="score-display" class="hud-value">🏆 Score: 0</div>
+            </div>
+        </div>
+
+        <div id="canvas-wrapper">
+            <div id="wave-banner">WAVE 1</div>
+            <canvas id="pvzCanvas" width="950" height="500"></canvas>
+        </div>
+
+        <div id="menu-screen" class="screen">
+            <h1>ARCANE VS GHOULS</h1>
+            <div class="guide-box">
+                <strong style="color: #ffaa00; font-size: 15px;">📜 HOW TO PLAY (MOBILE & PC):</strong><br><br>
+                <ul>
+                    <li>Tap or Click falling <b>☀️ Energy</b> orbs to gather magic points.</li>
+                    <li>Select a defense card above, then tap/click on the grass area to plant it.</li>
+                    <li>Watch out! The difficulty increases every wave and a 👹 <b style="color:#ff2200;">GIANT BOSS</b> will appear!</li>
+                </ul>
+            </div>
+            <button class="btn-action" onclick="startGame()">DEFEND NOW</button>
+        </div>
+
+        <div id="over-screen" class="screen" style="display: none;">
+            <h1 style="color: #ff2200;">GAME OVER</h1>
+            <p id="txt-final" style="font-size: 20px; color: #ffaa00; font-weight: bold;">Final Score: 0</p>
+            <button class="btn-action" onclick="startGame()">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("pvzCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const LANE_HEIGHT = 82;
+        const COL_WIDTH = 95;
+        const START_Y = 45; 
+        const START_X = 50;
+
+        let isPlaying = false;
+        let score = 0;
+        let energy = 150;
+        let selectedType = null;
+        let gameTime = 0;
+        let currentWave = 1;
+        let waveTimer = 0;
+
+        let plants = [];
+        let zombies = [];
+        let suns = [];
+        let projectiles = [];
+        let particles = [];
+
+        // Audio Synth
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSfx(freq, type, duration) {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                osc.start(); osc.stop(audioCtx.currentTime + duration);
+            } catch(e){}
+        }
+
+        function selectPlant(type) {
+            if (!isPlaying) return;
+            document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+            
+            if (selectedType === type || type === null) {
+                selectedType = null;
+            } else {
+                selectedType = type;
+                const cardEl = document.getElementById(`card-${type}`);
+                if (cardEl) cardEl.classList.add('active');
+            }
+        }
+
+        // Handle Click & Touch Inputs (PC & Mobile Support)
+        function handleInteraction(clientX, clientY) {
+            if (!isPlaying) return;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = (clientX - rect.left) * (canvas.width / rect.width);
+            const mouseY = (clientY - rect.top) * (canvas.height / rect.height);
+
+            // Collect Energy
+            for (let i = suns.length - 1; i >= 0; i--) {
+                let s = suns[i];
+                let dist = Math.sqrt((mouseX - s.x)**2 + (mouseY - s.y)**2);
+                if (dist < 28) {
+                    energy += 25;
+                    suns.splice(i, 1);
+                    playSfx(650, 'triangle', 0.08);
+                    updateHUD();
+                    return;
+                }
+            }
+
+            // Deploy Defense Plants
+            if (selectedType) {
+                let col = Math.floor((mouseX - START_X) / COL_WIDTH);
+                let lane = Math.floor((mouseY - START_Y) / LANE_HEIGHT);
+
+                if (col >= 0 && col < 9 && lane >= 0 && lane < 5) {
+                    let cost = selectedType === 'sun' ? 50 : selectedType === 'fire' ? 100 : selectedType === 'ice' ? 175 : selectedType === 'doom' ? 225 : 150;
+                    if (energy < cost) return;
+
+                    let exists = plants.some(p => p.col === col && p.lane === lane);
+                    if (!exists) {
+                        energy -= cost;
+                        updateHUD();
+                        
+                        let hpMax = selectedType === 'nut' ? 300 : 100;
+                        plants.push({
+                            x: START_X + col * COL_WIDTH + COL_WIDTH/2,
+                            y: START_Y + lane * LANE_HEIGHT + LANE_HEIGHT/2,
+                            col: col, lane: lane,
+                            type: selectedType, hp: hpMax, maxHp: hpMax, timer: 0
+                        });
+                        
+                        playSfx(300, 'sine', 0.1);
+                        selectPlant(null);
+                    }
+                }
+            }
+        }
+
+        canvas.addEventListener("mousedown", (e) => handleInteraction(e.clientX, e.clientY));
+        canvas.addEventListener("touchstart", (e) => {
+            if(e.touches.length > 0) handleInteraction(e.touches[0].clientX, e.touches[0].clientY);
+        }, {passive: true});
+
+        function updateHUD() {
+            document.getElementById("energy-display").innerText = `☀️ ${energy}`;
+            document.getElementById("score-display").innerText = `🏆 Score: ${score}`;
+            document.getElementById("wave-display").innerText = `🌊 Wave: ${currentWave}`;
+        }
+
+        function triggerWaveBanner(text) {
+            let banner = document.getElementById("wave-banner");
+            banner.innerText = text;
+            banner.style.display = "none";
+            void banner.offsetWidth;
+            banner.style.display = "block";
+            setTimeout(() => { banner.style.display = "none"; }, 2000);
+        }
+
+        // Spawn Boss on New Waves
+        function spawnBoss(waveNumber) {
+            let bossLane = Math.floor(Math.random() * 5);
+            let bossHp = 450 + (waveNumber * 250); 
+            
+            zombies.push({
+                x: canvas.width + 60,
+                y: START_Y + bossLane * LANE_HEIGHT + LANE_HEIGHT/2,
+                lane: bossLane, type: 'boss',
+                hp: bossHp, maxHp: bossHp, speed: 0.12, 
+                isEating: false, slowTimer: 0, animFrame: 0
+            });
+
+            // Spawn additional minions around the boss
+            for (let i = 0; i < 3 + waveNumber; i++) {
+                let rLane = Math.floor(Math.random() * 5);
+                zombies.push({
+                    x: canvas.width + 100 + (i * 35),
+                    y: START_Y + rLane * LANE_HEIGHT + LANE_HEIGHT/2,
+                    lane: rLane, type: 'normal',
+                    hp: 90 + (waveNumber * 15), speed: 0.22,
+                    isEating: false, slowTimer: 0, animFrame: Math.random() * 50
+                });
+            }
+        }
+
+        function startGame() {
+            document.getElementById("menu-screen").style.display = "none";
+            document.getElementById("over-screen").style.display = "none";
+            plants = []; zombies = []; suns = []; projectiles = []; particles = [];
+            energy = 225; score = 0; gameTime = 0; currentWave = 1; waveTimer = 0; selectedType = null;
+            updateHUD();
+            triggerWaveBanner("WAVE 1");
+            isPlaying = true;
+        }
+
+        function spawnParticles(x, y, color, count) {
+            for(let i=0; i<count; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
+                    size: Math.random()*3 + 1, alpha: 1, color: color
+                });
+            }
+        }
+
+        // --- GAME LOOP CORE ---
+        function updateLoop() {
+            if (isPlaying) {
+                gameTime++;
+                waveTimer++;
+
+                // Dynamic Difficulty Systems & Boss Notification Banner
+                if (waveTimer === 1000) { 
+                    playSfx(140, 'sawtooth', 0.5);
+                    triggerWaveBanner(`👹 BOSS INCOMING!\n(WAVE ${currentWave} BOSS)`);
+                    spawnBoss(currentWave);
+                }
+
+                if (waveTimer > 1500) { 
+                    currentWave++;
+                    waveTimer = 0;
+                    triggerWaveBanner(`WAVE ${currentWave}\n(Difficulty Increased!)`);
+                    updateHUD();
+                }
+
+                // Increase spawn frequency as wave goes higher
+                let baseSpawnRate = Math.max(50, 240 - (currentWave * 45)); 
+                if (gameTime % baseSpawnRate === 0 && waveTimer < 1000) {
+                    let randLane = Math.floor(Math.random() * 5);
+                    let isEmber = Math.random() > 0.6;
+                    
+                    let zHp = (isEmber ? 180 : 90) + (currentWave * 15); 
+                    let zSpeed = isEmber ? 0.18 : 0.22; 
+
+                    zombies.push({
+                        x: canvas.width + 30,
+                        y: START_Y + randLane * LANE_HEIGHT + LANE_HEIGHT/2,
+                        lane: randLane, type: isEmber ? 'ember' : 'normal',
+                        hp: zHp, maxHp: zHp, speed: zSpeed,
+                        isEating: false, slowTimer: 0, animFrame: Math.random() * 100
+                    });
+                }
+
+                // Natural Sun Drops
+                if (gameTime % 200 === 0) {
+                    suns.push({
+                        x: Math.random() * (canvas.width - 240) + 120,
+                        y: 0, targetY: Math.random() * (canvas.height - 150) + 120, timer: 0
+                    });
+                }
+                suns.forEach(s => { if (s.y < s.targetY) s.y += 1.5; s.timer++; });
+                suns = suns.filter(s => s.timer < 500);
+
+                // Plants Actions
+                plants.forEach(p => {
+                    p.timer++;
+                    if (p.type === 'sun' && p.timer % 240 === 0) {
+                        suns.push({ x: p.x + (Math.random()-0.5)*30, y: p.y, targetY: p.y + 15, timer: 0 });
+                    }
+                    else if ((p.type === 'fire' || p.type === 'ice') && p.timer % 80 === 0) {
+                        if (zombies.some(z => z.lane === p.lane && z.x > p.x)) {
+                            projectiles.push({ x: p.x + 15, y: p.y - 6, lane: p.lane, speed: 6, type: p.type });
+                            playSfx(420, 'triangle', 0.04);
+                        }
+                    }
+                    else if (p.type === 'doom' && p.timer % 150 === 0) {
+                        if (zombies.some(z => z.lane === p.lane && z.x > p.x)) {
+                            projectiles.push({ x: p.x + 15, y: p.y - 6, lane: p.lane, speed: 4, type: 'doom' });
+                            playSfx(220, 'sawtooth', 0.06);
+                        }
+                    }
+                });
+
+                // Zombies Movements & Combat
+                zombies.forEach((z) => {
+                    z.animFrame++;
+                    if (z.slowTimer > 0) z.slowTimer--;
+
+                    let curSpeed = z.slowTimer > 0 ? z.speed * 0.5 : z.speed;
+                    let hitRange = z.type === 'boss' ? 45 : 30; 
+                    let targetPlant = plants.find(p => p.lane === z.lane && Math.abs(p.x - z.x) < hitRange);
+
+                    if (targetPlant) {
+                        z.isEating = true;
+                        targetPlant.hp -= z.type === 'boss' ? 2.0 : 0.6; 
+                        if (gameTime % 25 === 0) spawnParticles(targetPlant.x, targetPlant.y, '#63ab3c', 3);
+                        if (targetPlant.hp <= 0) {
+                            plants = plants.filter(p => p !== targetPlant);
+                            z.isEating = false;
+                        }
+                    } else {
+                        z.isEating = false;
+                        z.x -= curSpeed;
+                    }
+
+                    if (z.x < START_X - 15) {
+                        isPlaying = false;
+                        document.getElementById("txt-final").innerText = `Final Score: ${score}`;
+                        document.getElementById("over-screen").style.display = "flex";
+                    }
+                });
+
+                // Projectiles Collisions
+                projectiles.forEach((pr, prIdx) => {
+                    pr.x += pr.speed;
+                    let hitZombie = zombies.find(z => z.lane === pr.lane && Math.abs(z.x - pr.x) < 30);
+                    
+                    if (hitZombie) {
+                        projectiles.splice(prIdx, 1);
+                        
+                        if (pr.type === 'fire') {
+                            hitZombie.hp -= 30;
+                            spawnParticles(pr.x, pr.y, '#ff4500', 4);
+                            playSfx(160, 'sawtooth', 0.04);
+                        } 
+                        else if (pr.type === 'ice') {
+                            hitZombie.hp -= 25;
+                            hitZombie.slowTimer = 160; 
+                            spawnParticles(pr.x, pr.y, '#00e5ff', 4);
+                            playSfx(260, 'sine', 0.04);
+                        } 
+                        else if (pr.type === 'doom') {
+                            spawnParticles(pr.x, pr.y, '#bd00ff', 12);
+                            playSfx(110, 'sawtooth', 0.15);
+                            zombies.forEach(z => {
+                                if (z.lane === pr.lane && Math.abs(z.x - pr.x) < 85) z.hp -= 70;
+                            });
+                        }
+
+                        zombies.forEach(z => {
+                            if (z.hp <= 0) {
+                                spawnParticles(z.x, z.y - 10, '#42543d', 8);
+                                // DIUBAH DI SINI: Semua jenis zombie mati sekarang memberikan tepat 5 skor
+                                score += 5;
+                                updateHUD();
+                            }
+                        });
+                        zombies = zombies.filter(z => z.hp > 0);
+                    }
+
+                    if (pr.x > canvas.width) projectiles.splice(prIdx, 1);
+                });
+
+                particles.forEach((p, pIdx) => {
+                    p.x += p.vx; p.y += p.vy; p.alpha -= 0.03;
+                    if (p.alpha <= 0) particles.splice(pIdx, 1);
+                });
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Grid Rendering
+            for (let l = 0; l < 5; l++) {
+                ctx.fillStyle = l % 2 === 0 ? "#19301b" : "#132615";
+                ctx.fillRect(START_X, START_Y + l * LANE_HEIGHT, COL_WIDTH * 9, LANE_HEIGHT);
+                ctx.strokeStyle = "rgba(255,255,255,0.012)";
+                ctx.strokeRect(START_X, START_Y + l * LANE_HEIGHT, COL_WIDTH * 9, LANE_HEIGHT);
+            }
+
+            // House Safe Border Line
+            ctx.fillStyle = "#991f1f";
+            ctx.fillRect(START_X - 10, START_Y, 4, LANE_HEIGHT * 5);
+
+            if (isPlaying) {
+                // Render Defense Plants
+                plants.forEach(p => {
+                    ctx.save(); ctx.translate(p.x, p.y);
+                    if (p.hp < p.maxHp) {
+                        ctx.fillStyle = "#333"; ctx.fillRect(-16, -30, 32, 4);
+                        ctx.fillStyle = "#00ff00"; ctx.fillRect(-16, -30, (p.hp/p.maxHp)*32, 4);
+                    }
+
+                    if (p.type === 'sun') {
+                        ctx.fillStyle = "#ffcc00";
+                        for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+                            ctx.fillRect(Math.cos(a + gameTime*0.03)*11 - 4, Math.sin(a + gameTime*0.03)*11 - 4, 7, 7);
+                        }
+                        ctx.fillStyle = "#34612e"; ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI*2); ctx.fill();
+                    } 
+                    else if (p.type === 'fire') {
+                        ctx.fillStyle = "#e63900"; ctx.beginPath(); ctx.arc(0, -2, 11, 0, Math.PI*2); ctx.fill();
+                        ctx.fillStyle = "#ff8800"; ctx.fillRect(4, -6, 9, 6);
+                    } 
+                    else if (p.type === 'ice') {
+                        ctx.fillStyle = "#00aaff"; ctx.beginPath(); ctx.arc(0, -2, 11, 0, Math.PI*2); ctx.fill();
+                        ctx.fillStyle = "#b3f0ff"; ctx.fillRect(4, -6, 9, 6);
+                    } 
+                    else if (p.type === 'doom') {
+                        ctx.fillStyle = "#7700aa"; ctx.beginPath(); ctx.arc(0, -2, 13, 0, Math.PI*2); ctx.fill();
+                        ctx.fillStyle = "#cc00ff"; ctx.fillRect(3, -7, 11, 8);
+                    }
+                    else if (p.type === 'nut') {
+                        ctx.fillStyle = "#8a5c2e"; ctx.beginPath(); ctx.ellipse(0, 0, 14, 18, 0, 0, Math.PI*2); ctx.fill();
+                        ctx.fillStyle = "#000"; ctx.fillRect(-4, -6, 2, 4); ctx.fillRect(2, -6, 2, 4);
+                    }
+                    ctx.restore();
+                });
+
+                // Render Projectiles
+                projectiles.forEach(pr => {
+                    ctx.save();
+                    ctx.fillStyle = pr.type === 'fire' ? "#ff5500" : pr.type === 'ice' ? "#00ffff" : "#cc00ff";
+                    ctx.beginPath(); ctx.arc(pr.x, pr.y, 6, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+                });
+
+                // Render Ghouls & Boss
+                zombies.forEach(z => {
+                    ctx.save(); ctx.translate(z.x, z.y);
+                    
+                    let isSlowed = z.slowTimer > 0;
+                    let walkWobble = Math.sin(z.animFrame * 0.05);
+                    let legSwing = Math.sin(z.animFrame * 0.08);
+
+                    let scale = z.type === 'boss' ? 2.0 : 1.0;
+                    ctx.scale(scale, scale);
+
+                    // Boss HP bar rendering
+                    if (z.type === 'boss') {
+                        ctx.fillStyle = "#222"; ctx.fillRect(-20, -38, 40, 5);
+                        ctx.fillStyle = "#ff0000"; ctx.fillRect(-20, -38, (z.hp/z.maxHp)*40, 5);
+                    }
+
+                    // Legs
+                    ctx.fillStyle = "#1e241c";
+                    ctx.fillRect(-6 + (legSwing * 3), 10, 4, 8);
+                    ctx.fillRect(2 - (legSwing * 3), 10, 4, 8);
+
+                    // Suit
+                    ctx.fillStyle = z.type === 'boss' ? "#2d1f3d" : (isSlowed ? "#203a4a" : "#4d3d2d"); 
+                    ctx.save();
+                    ctx.rotate(walkWobble * 0.04);
+                    ctx.fillRect(-10, -12, 18, 24); 
+                    
+                    ctx.fillStyle = z.type === 'boss' ? "#ffaa00" : "#991111"; 
+                    ctx.fillRect(-2, -8, 3, 10);
+                    ctx.restore();
+
+                    // Arms
+                    ctx.fillStyle = isSlowed ? "#4a859e" : (z.type === 'boss' ? "#8c3b3b" : "#618256"); 
+                    let armY = z.isEating ? Math.sin(z.animFrame * 0.2) * 3 - 2 : -2; 
+                    ctx.fillRect(-18, armY, 10, 4); 
+
+                    // Head
+                    ctx.save();
+                    ctx.translate(0, -18 + (walkWobble * 1));
+                    ctx.fillStyle = isSlowed ? "#4a859e" : (z.type === 'boss' ? "#8c3b3b" : "#618256");
+                    ctx.beginPath(); ctx.arc(0, -5, 10, 0, Math.PI*2); ctx.fill(); 
+
+                    let jawOffset = z.isEating ? Math.abs(Math.sin(z.animFrame * 0.15)) * 4 : 0;
+                    ctx.fillRect(-8, 0 + jawOffset, 8, 4);
+
+                    // Eyes
+                    ctx.fillStyle = "#fff";
+                    ctx.beginPath(); ctx.arc(-4, -7, 4, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = "#000";
+                    ctx.beginPath(); ctx.arc(-5, -7, 1.5, 0, Math.PI*2); ctx.fill(); 
+
+                    // Bucket Hat / Crown Accessories
+                    if (z.type === 'ember') {
+                        ctx.fillStyle = isSlowed ? "#4b6575" : "#7f8c8d";
+                        ctx.beginPath(); ctx.moveTo(-11, -12); ctx.lineTo(-7, -24); ctx.lineTo(5, -24); ctx.lineTo(9, -12);
+                        ctx.closePath(); ctx.fill();
+                    } else if (z.type === 'boss') {
+                        ctx.fillStyle = "#ffd700";
+                        ctx.beginPath(); ctx.moveTo(-10, -13); ctx.lineTo(-8, -25); ctx.lineTo(-3, -18); ctx.lineTo(0, -28); ctx.lineTo(3, -18); ctx.lineTo(8, -25); ctx.lineTo(10, -13);
+                        ctx.closePath(); ctx.fill();
+                    }
+                    ctx.restore();
+                    ctx.restore();
+                });
+
+                // Particle Effects
+                particles.forEach(p => {
+                    ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); ctx.restore();
+                });
+
+                // Light Sun Drop Render
+                suns.forEach(s => {
+                    ctx.save();
+                    ctx.fillStyle = "#ffcc00"; ctx.shadowColor = "#ffaa00"; ctx.shadowBlur = 10;
+                    ctx.beginPath(); ctx.arc(s.x, s.y, 14, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(s.x, s.y, 6, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+                });
+            }
+
+            requestAnimationFrame(updateLoop);
+        }
+
+        updateLoop();
+    </script>
+</body>
+</html>
