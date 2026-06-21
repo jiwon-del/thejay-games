@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Deep Miner: Oxygen Survival</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            background-color: #0d0702;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 430px;
+            height: 100vh;
+            max-height: 850px;
+            background: #1a0f0a;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Top Header - UI Score & Oxygen */
+        #top-ui {
+            background: #000000;
+            padding: 12px 15px;
+            border-bottom: 3px solid #331a00;
+        }
+        .ui-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .ui-text {
+            color: #aaaaaa;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .ui-value {
+            color: #ffffff;
+            font-size: 18px;
+        }
+        
+        /* Oxygen Bar Styling */
+        #o2-bar-container {
+            width: 100%;
+            height: 22px;
+            background: #221105;
+            border: 2px solid #ffffff;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            margin-top: 5px;
+        }
+        #o2-bar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #0055ff 0%, #00d2ff 100%);
+            transition: width 0.1s linear;
+        }
+        #o2-icon-label {
+            position: absolute;
+            top: 0;
+            left: 8px;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: bold;
+            line-height: 18px;
+            text-shadow: 1px 1px 2px #000;
+        }
+
+        /* Canvas Arena */
+        #canvas-wrapper {
+            flex: 1;
+            position: relative;
+            background: #140b07;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Bottom Controls for Mobile (Anti-Error Passive Listener Fix) */
+        #controls-pad {
+            background: #0a0503;
+            padding: 15px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-gap: 10px;
+            border-top: 4px solid #26140a;
+        }
+        .ctrl-btn {
+            background: #4a2711;
+            border: 2px solid #6e3a19;
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: bold;
+            padding: 15px 0;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #2b160a;
+        }
+        .ctrl-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #2b160a;
+            background: #5c3115;
+        }
+        .empty-space { pointer-events: none; }
+
+        /* Screens overlays */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            background: rgba(15, 8, 4, 0.96);
+            color: #ffffff;
+            text-align: center;
+            padding: 30px;
+        }
+        .screen h1 {
+            font-size: 32px;
+            color: #ff9900;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 0px #000;
+        }
+        .instructions {
+            border: 1px dashed #6e3a19;
+            padding: 15px;
+            border-radius: 5px;
+            max-width: 320px;
+            margin: 20px 0;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #ddd;
+            text-align: left;
+            background: #140b07;
+        }
+        .btn {
+            background: #00d2ff;
+            color: #000000;
+            border: none;
+            padding: 14px 45px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            box-shadow: 0 4px 0 #0088aa;
+        }
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #0088aa;
+        }
+        .hide { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="top-ui">
+            <div class="ui-row">
+                <div class="ui-text">Score: <span id="score-num" class="ui-value">0</span></div>
+                <div class="ui-text">Depth: <span id="depth-num" class="ui-value" style="color: #ffcc00;">0m</span></div>
+            </div>
+            <div id="o2-bar-container">
+                <div id="o2-bar"></div>
+                <div id="o2-icon-label">O₂ OXYGEN TANK</div>
+            </div>
+        </div>
+
+        <div id="canvas-wrapper">
+            <div id="start-screen" class="screen">
+                <h1>DEEP MINER</h1>
+                <div class="instructions">
+                    <strong>MINING PROTOCOL:</strong><br>
+                    • Use the On-Screen buttons or Arrow keys.<br>
+                    • Move <strong>Left, Right, or Down</strong> to dig blocks.<br>
+                    • 🔵 Collect <strong>O₂ Tanks</strong> to breathe underground.<br>
+                    • 💰 <strong>Gold (+5)</strong> & 💎 <strong>Gems (+15)</strong> give score.<br>
+                    • Digging normal dirt blocks does not give score!
+                </div>
+                <button class="btn" id="start-btn">START DIGGING</button>
+            </div>
+
+            <div id="gameover-screen" class="screen hide">
+                <h2 style="color: #ff3333; font-size: 30px;">NO OXYGEN LEFT</h2>
+                <p style="color: #bbb; margin-top: 10px;">Your light faded away in the deep underground.</p>
+                <p style="font-size: 20px; margin: 25px 0;">FINAL SCORE: <span id="final-score" style="color: #00ff66; font-weight:bold;">0</span></p>
+                <button class="btn" id="retry-btn" style="background: #ffcc00; box-shadow: 0 4px 0 #b38f00;">DIG AGAIN</button>
+            </div>
+
+            <canvas id="gameCanvas"></canvas>
+        </div>
+
+        <div id="controls-pad">
+            <div class="empty-space"></div>
+            <div class="ctrl-btn" id="btn-up">▲</div>
+            <div class="empty-space"></div>
+            <div class="ctrl-btn" id="btn-left">◀</div>
+            <div class="ctrl-btn" id="btn-down">▼</div>
+            <div class="ctrl-btn" id="btn-right">▶</div>
+        </div>
+    </div>
+
+    <script>
+        // --- Retro Audio FX Engine ---
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        function playSound(type) {
+            initAudio();
+            if (!audioCtx || audioCtx.state === 'suspended') return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'dig') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(90, now);
+                osc.frequency.linearRampToValueAtTime(25, now + 0.12);
+                gain.gain.setValueAtTime(0.4, now); gain.gain.linearRampToValueAtTime(0, now + 0.12);
+                osc.start(now); osc.stop(now + 0.12);
+            } else if (type === 'o2') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(350, now);
+                osc.frequency.exponentialRampToValueAtTime(700, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'gem') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'gameover') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(160, now);
+                osc.frequency.linearRampToValueAtTime(40, now + 0.6);
+                gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                osc.start(now); osc.stop(now + 0.6);
+            }
+        }
+
+        // --- Core Setup & Config ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreNum = document.getElementById('score-num');
+        const depthNum = document.getElementById('depth-num');
+        const o2Bar = document.getElementById('o2-bar');
+        
+        const startScreen = document.getElementById('start-screen');
+        const gameoverScreen = document.getElementById('gameover-screen');
+        const finalScore = document.getElementById('final-score');
+        
+        const startBtn = document.getElementById('start-btn');
+        const retryBtn = document.getElementById('retry-btn');
+
+        function resize() {
+            const wrapper = document.getElementById('canvas-wrapper');
+            canvas.width = wrapper.clientWidth;
+            canvas.height = wrapper.clientHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Game Settings
+        let isGameActive = false;
+        let score = 0;
+        let depth = 0;
+        let oxygen = 100; 
+        
+        const COLS = 7; 
+        let BLOCK_SIZE = canvas.width / COLS;
+        let worldRows = []; 
+        let particles = [];
+        let shakeTime = 0;
+        
+        // Player state tracking
+        let player = { 
+            gridX: 3, gridY: 1, 
+            animX: 3, animY: 1, 
+            dirLook: 1,
+            swingTimer: 0 // For visual pickaxe swing animation
+        };
+        let cameraY = 0;
+
+        function initGame() {
+            score = 0;
+            depth = 0;
+            oxygen = 100;
+            cameraY = 0;
+            shakeTime = 0;
+            particles = [];
+            BLOCK_SIZE = canvas.width / COLS;
+            
+            player.gridX = 3;
+            player.gridY = 1;
+            player.animX = 3;
+            player.animY = 1;
+            player.swingTimer = 0;
+            
+            scoreNum.innerText = score;
+            depthNum.innerText = "0m";
+            o2Bar.style.width = "100%";
+
+            worldRows = [];
+            for (let r = 0; r < 25; r++) {
+                generateSingleRow(r);
+            }
+            
+            // Clear starting zone
+            for (let r = 0; r <= 2; r++) {
+                worldRows[r].blocks.forEach(b => b.type = 'air');
+            }
+        }
+
+        function generateSingleRow(r) {
+            let row = { index: r, blocks: [] };
+            for (let c = 0; c < COLS; c++) {
+                let type = 'dirt';
+                let rand = Math.random();
+
+                if (r > 2) {
+                    if (rand < 0.08) type = 'o2_tank';    // Cyan Oxygen Tank
+                    else if (rand < 0.15) type = 'gold_ore';  // Yellow Gold Chunk
+                    else if (rand < 0.20) type = 'gem_ore';   // Purple Shiny Gem
+                    else if (rand < 0.26) type = 'bedrock';   // Grey Wall Block
+                }
+                row.blocks.push({ type: type });
+            }
+            worldRows.push(row);
+        }
+
+        function spawnDigParticles(bx, by, color) {
+            let cx = bx * BLOCK_SIZE + BLOCK_SIZE / 2;
+            let cy = by * BLOCK_SIZE + BLOCK_SIZE / 2;
+            for(let i=0; i<12; i++) {
+                particles.push({
+                    x: cx,
+                    y: cy,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6 - 2,
+                    size: 3 + Math.random() * 4,
+                    color: color,
+                    alpha: 1,
+                    life: 20 + Math.random() * 15
+                });
+            }
+        }
+
+        function startGameEngine() {
+            initAudio();
+            startScreen.classList.add('hide');
+            gameoverScreen.classList.add('hide');
+            resize();
+            initGame();
+            setTimeout(() => { isGameActive = true; }, 100);
+        }
+
+        function runGameOver() {
+            isGameActive = false;
+            playSound('gameover');
+            finalScore.innerText = score;
+            gameoverScreen.classList.remove('hide');
+        }
+
+        // --- NAVIGATION HANDLER (GRID SYSTEM) ---
+        function moveMiner(dx, dy) {
+            if (!isGameActive) return;
+
+            let targetX = player.gridX + dx;
+            let targetY = player.gridY + dy;
+
+            if (targetX < 0 || targetX >= COLS || targetY < 0) return;
+
+            if (dx !== 0) player.dirLook = dx; 
+
+            while (worldRows.length <= targetY + 15) {
+                generateSingleRow(worldRows.length);
+            }
+
+            let targetBlock = worldRows[targetY].blocks[targetX];
+
+            if (targetBlock.type === 'bedrock') return; 
+
+            // Trigger pickaxe swing animation
+            player.swingTimer = 10;
+
+            // Process Digging & Balancing Scoring Mechanics
+            if (targetBlock.type === 'dirt') {
+                spawnDigParticles(targetX, targetY, '#542d18');
+                targetBlock.type = 'air';
+                shakeTime = 8; // Screen shake for realism
+                playSound('dig');
+                // Digging ordinary dirt gives 0 score now to avoid over-inflation
+            } else if (targetBlock.type === 'o2_tank') {
+                spawnDigParticles(targetX, targetY, '#00a2ff');
+                targetBlock.type = 'air';
+                oxygen = Math.min(100, oxygen + 25); 
+                playSound('o2');
+            } else if (targetBlock.type === 'gold_ore') {
+                spawnDigParticles(targetX, targetY, '#ffd700');
+                targetBlock.type = 'air';
+                score += 5; // Balanced Gold Score
+                shakeTime = 10;
+                playSound('o2');
+            } else if (targetBlock.type === 'gem_ore') {
+                spawnDigParticles(targetX, targetY, '#d11cd1');
+                targetBlock.type = 'air';
+                score += 15; // Balanced Rare Gem Score
+                shakeTime = 12;
+                playSound('gem');
+            }
+
+            player.gridX = targetX;
+            player.gridY = targetY;
+
+            scoreNum.innerText = score;
+            if (player.gridY - 1 > depth) {
+                depth = player.gridY - 1;
+                depthNum.innerText = depth + "m";
+            }
+        }
+
+        // Keyboard Inputs Support
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') moveMiner(-1, 0);
+            if (e.key === 'ArrowRight' || e.key === 'd') moveMiner(1, 0);
+            if (e.key === 'ArrowDown' || e.key === 's') moveMiner(0, 1);
+            if (e.key === 'ArrowUp' || e.key === 'w') moveMiner(0, -1);
+        });
+
+        // Anti-Error Fixed Passive Touch Listeners
+        const addController = (id, dx, dy) => {
+            const btn = document.getElementById(id);
+            const trigger = (e) => {
+                if (e.cancelable) e.preventDefault(); // FIX: Prevents TrebEdit/Console touch errors safely
+                moveMiner(dx, dy);
+            };
+            btn.addEventListener('touchstart', trigger, { passive: false });
+            btn.addEventListener('mousedown', trigger);
+        };
+
+        addController('btn-left', -1, 0);
+        addController('btn-right', 1, 0);
+        addController('btn-down', 0, 1);
+        addController('btn-up', 0, -1);
+
+        const safeButtonBind = (btnElement) => {
+            btnElement.addEventListener('click', startGameEngine);
+            btnElement.addEventListener('touchstart', (e) => {
+                if (e.cancelable) e.preventDefault();
+                startGameEngine();
+            }, { passive: false });
+        };
+        safeButtonBind(startBtn);
+        safeButtonBind(retryBtn);
+
+        // --- RENDERING GRAPHICS GAME LOOP ---
+        function loop() {
+            BLOCK_SIZE = canvas.width / COLS;
+
+            let playerTargetCamY = (player.gridY * BLOCK_SIZE) - (canvas.height / 3);
+            if (playerTargetCamY < 0) playerTargetCamY = 0;
+            cameraY += (playerTargetCamY - cameraY) * 0.1;
+
+            ctx.save();
+            // Realism Impact: Screen Shake effect mapping
+            if (shakeTime > 0) {
+                let dx = (Math.random() - 0.5) * 5;
+                let dy = (Math.random() - 0.5) * 5;
+                ctx.translate(dx, dy);
+                shakeTime--;
+            }
+
+            ctx.fillStyle = '#0f0804';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw World Blocks Layers
+            worldRows.forEach(row => {
+                let yPos = (row.index * BLOCK_SIZE) - cameraY;
+                
+                if (yPos > -BLOCK_SIZE && yPos < canvas.height + BLOCK_SIZE) {
+                    row.blocks.forEach((block, cIndex) => {
+                        let xPos = cIndex * BLOCK_SIZE;
+
+                        if (block.type === 'air') {
+                            ctx.fillStyle = '#2b170c';
+                            ctx.fillRect(xPos, yPos, BLOCK_SIZE, BLOCK_SIZE);
+                            ctx.strokeStyle = '#1f1008';
+                            ctx.strokeRect(xPos, yPos, BLOCK_SIZE, BLOCK_SIZE);
+                        } 
+                        else if (block.type === 'dirt') {
+                            ctx.fillStyle = '#542d18';
+                            ctx.fillRect(xPos + 1, yPos + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+                            // Texture detail lines
+                            ctx.fillStyle = '#3d2011';
+                            ctx.fillRect(xPos + 4, yPos + BLOCK_SIZE/2 - 2, BLOCK_SIZE - 8, 4);
+                        } 
+                        else if (block.type === 'bedrock') {
+                            ctx.fillStyle = '#40444a';
+                            ctx.fillRect(xPos + 1, yPos + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+                            ctx.fillStyle = '#616873';
+                            ctx.fillRect(xPos + 4, yPos + 4, BLOCK_SIZE - 8, BLOCK_SIZE - 8);
+                        } 
+                        else if (block.type === 'o2_tank') {
+                            ctx.fillStyle = '#2b170c';
+                            ctx.fillRect(xPos, yPos, BLOCK_SIZE, BLOCK_SIZE);
+
+                            let cx = xPos + BLOCK_SIZE / 2;
+                            let cy = yPos + BLOCK_SIZE / 2;
+                            ctx.fillStyle = '#00a2ff';
+                            ctx.fillRect(cx - 7, cy - 8, 14, 20); 
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(cx - 4, cy - 12, 8, 4);   
+                            ctx.fillStyle = '#ff3300';
+                            ctx.fillRect(cx - 3, cy - 2, 6, 2);
+                        } 
+                        else if (block.type === 'gold_ore') {
+                            ctx.fillStyle = '#2b170c';
+                            ctx.fillRect(xPos, yPos, BLOCK_SIZE, BLOCK_SIZE);
+                            
+                            let cx = xPos + BLOCK_SIZE / 2;
+                            let cy = yPos + BLOCK_SIZE / 2;
+                            ctx.fillStyle = '#ffd700';
+                            ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI * 2); ctx.fill();
+                            ctx.fillStyle = '#fff099';
+                            ctx.fillRect(cx - 3, cy - 4, 4, 4); // Shine
+                        }
+                        else if (block.type === 'gem_ore') {
+                            ctx.fillStyle = '#2b170c';
+                            ctx.fillRect(xPos, yPos, BLOCK_SIZE, BLOCK_SIZE);
+                            
+                            let cx = xPos + BLOCK_SIZE / 2;
+                            let cy = yPos + BLOCK_SIZE / 2;
+                            ctx.fillStyle = '#d11cd1';
+                            ctx.beginPath();
+                            ctx.moveTo(cx, cy - 10);
+                            ctx.lineTo(cx + 9, cy);
+                            ctx.lineTo(cx, cy + 10);
+                            ctx.lineTo(cx - 9, cy);
+                            ctx.closePath(); ctx.fill();
+                        }
+                    });
+                }
+            });
+
+            // Particles update & drawing
+            for(let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2; // Gravity simulation
+                p.life--;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y - cameraY, p.size, p.size);
+                if(p.life <= 0) particles.splice(i, 1);
+            }
+
+            // Smooth character linear movement calculations
+            player.animX += (player.gridX - player.animX) * 0.25;
+            player.animY += (player.gridY - player.animY) * 0.25;
+
+            let pX = player.animX * BLOCK_SIZE + BLOCK_SIZE / 2;
+            let pY = (player.animY * BLOCK_SIZE + BLOCK_SIZE / 2) - cameraY;
+
+            // Draw Detailed Miner Character
+            if (isGameActive) {
+                ctx.save();
+                ctx.translate(pX, pY);
+                if (player.dirLook === -1) ctx.scale(-1, 1); 
+
+                // Miner Body / Jumpsuit
+                ctx.fillStyle = '#d96214';
+                ctx.beginPath(); ctx.arc(0, 4, 12, 0, Math.PI * 2); ctx.fill();
+
+                // Detailed Head & Face Skin
+                ctx.fillStyle = '#ffcc99';
+                ctx.beginPath(); ctx.arc(0, -6, 9, 0, Math.PI * 2); ctx.fill();
+
+                // Miner Helmet
+                ctx.fillStyle = '#ffcc00';
+                ctx.fillRect(-10, -16, 20, 8);
+                ctx.beginPath(); ctx.arc(0, -15, 10, Math.PI, 0); ctx.fill();
+                
+                // Working Headlamp (Glow effect simulation)
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(6, -13, 4, 4);
+                ctx.fillStyle = 'rgba(255, 255, 200, 0.15)';
+                ctx.beginPath();
+                ctx.moveTo(8, -11);
+                ctx.lineTo(50, 15);
+                ctx.lineTo(40, 50);
+                ctx.closePath(); ctx.fill();
+
+                // Pickaxe Interactive Animation Calculation
+                let angle = 0;
+                if (player.swingTimer > 0) {
+                    angle = (player.swingTimer / 10) * Math.PI / 3; // Swing down motion arc rotation
+                    player.swingTimer--;
+                }
+
+                ctx.rotate(angle);
+                ctx.strokeStyle = '#858b94'; // Pickaxe metal iron head
+                ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.moveTo(8, -2); ctx.lineTo(18, -12); ctx.stroke();
+                ctx.strokeStyle = '#543311'; // Pickaxe Wood handle
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(0, 4); ctx.lineTo(12, -4); ctx.stroke();
+
+                ctx.restore();
+
+                // Oxygen depletion tracking
+                oxygen -= 0.05; 
+                if (oxygen < 0) oxygen = 0;
+                o2Bar.style.width = oxygen + "%";
+
+                if (oxygen <= 0) runGameOver();
+            }
+
+            ctx.restore(); // Restores from screen shake map matrix shift
+
+            // Darkness Ambience Layer
+            let shadowGrad = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, canvas.width / 4,
+                canvas.width / 2, canvas.height / 2, canvas.width * 0.85
+            );
+            shadowGrad.addColorStop(0, 'rgba(0,0,0,0)');
+            shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
+            ctx.fillStyle = shadowGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+</body>
+</html>
