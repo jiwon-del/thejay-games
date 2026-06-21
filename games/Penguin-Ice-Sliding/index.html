@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Penguin Ice Sliding - Deluxe Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background: #090d16;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            color: #f8fafc;
+        }
+        #gameContainer {
+            position: relative;
+            width: 650px;
+            height: 400px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            border-radius: 24px;
+            overflow: hidden;
+            border: 4px solid #94a3b8;
+            background: #0f172a;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+            backdrop-filter: blur(8px);
+            z-index: 10;
+        }
+        #startScreen {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(17, 24, 39, 0.95));
+        }
+        #gameOverScreen {
+            background: rgba(9, 13, 22, 0.9);
+            display: none;
+        }
+        h1 {
+            font-size: 42px;
+            font-weight: 900;
+            color: #ffffff;
+            text-shadow: 0 0 25px rgba(56, 189, 248, 0.7), 0 4px 12px rgba(0,0,0,0.5);
+            margin-bottom: 2px;
+            letter-spacing: 2px;
+        }
+        .subtitle {
+            font-size: 11px;
+            color: #38bdf8;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            font-weight: bold;
+            margin-bottom: 25px;
+        }
+        .btn {
+            background: linear-gradient(90deg, #00d2ff, #0066ff);
+            color: white;
+            border: 2px solid #e0f2fe;
+            padding: 14px 40px;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 66, 255, 0.4);
+            transition: all 0.2s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 25px rgba(56, 189, 248, 0.7);
+        }
+        .instructions {
+            margin-top: 25px;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 15px 25px;
+            border-radius: 16px;
+            font-size: 13px;
+            color: #94a3b8;
+            max-width: 450px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            line-height: 1.4;
+        }
+        .instructions strong { color: #f59e0b; }
+        
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+            font-size: 15px;
+            z-index: 5;
+            display: none;
+        }
+        .hud-box {
+            background: rgba(15, 23, 42, 0.6);
+            color: #f8fafc;
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(4px);
+        }
+        #score { color: #38bdf8; font-size: 17px; }
+        #bestScore { color: #f59e0b; }
+    </style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <!-- HUD Layer -->
+    <div id="hud">
+        <div class="hud-box">❄️ Score: <span id="score">0</span></div>
+        <div class="hud-box">🏆 Best: <span id="bestScore">0</span></div>
+    </div>
+
+    <!-- Canvas Layer -->
+    <canvas id="gameCanvas" width="650" height="400"></canvas>
+
+    <!-- Start Screen -->
+    <div id="startScreen" class="screen">
+        <h1>PENGUIN SLIDE</h1>
+        <div class="subtitle">Deluxe Aurora Edition</div>
+        <button class="btn" onclick="startGame()">Start Sliding</button>
+        <div class="instructions">
+            <strong>Controls:</strong> Press <strong>SPACEBAR</strong>, <strong>UP ARROW</strong>, or <strong>TAP SCREEN</strong> to jump.<br>
+            Each successfully dodged obstacle grants <strong>+5 Score</strong>!
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen" class="screen">
+        <h1 style="color: #ef4444; text-shadow: 0 0 20px rgba(239,68,68,0.5);">Ouch! Crashed</h1>
+        <div class="subtitle" style="color: #94a3b8;">The penguin tumbled safely into the soft snow</div>
+        <div style="font-size: 18px; margin-bottom: 25px; color: #cbd5e1;">
+            Final Score: <strong id="finalScore" style="color: #38bdf8; font-size: 36px; display: block; margin-top: 5px;">0</strong>
+        </div>
+        <button class="btn" onclick="restartGame()">Try Again</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // UI Selectors
+    const startScreen = document.getElementById("startScreen");
+    const gameOverScreen = document.getElementById("gameOverScreen");
+    const hud = document.getElementById("hud");
+    const scoreText = document.getElementById("score");
+    const bestScoreText = document.getElementById("bestScore");
+    const finalScoreText = document.getElementById("finalScore");
+
+    // Game Control Settings
+    let gameRunning = false;
+    let score = 0;
+    const startSpeed = 3.2; 
+    let gameSpeed = startSpeed;
+    let localHighScore = localStorage.getItem("penguin_deluxe_highscore") || 0;
+    
+    bestScoreText.innerText = localHighScore;
+
+    // Audio Engine
+    let audioCtx = null;
+    function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+
+    function playSound(type) {
+        if (!audioCtx) return;
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+
+        if (type === 'jump') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(250, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(500, audioCtx.currentTime + 0.18);
+            gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.18);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.18);
+        } else if (type === 'fish') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); 
+            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.07); 
+            gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.25);
+        } else if (type === 'score5') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime); 
+            osc.frequency.setValueAtTime(554.37, audioCtx.currentTime + 0.05); 
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+        } else if (type === 'hit') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.35);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.35);
+        }
+    }
+
+    const groundY = canvas.height - 60;
+
+    // Penguin Definition
+    const penguin = {
+        x: 90,
+        y: groundY - 30,
+        radius: 16,
+        vy: 0,
+        gravity: 0.45,       
+        jumpForce: -10.0,    
+        isGrounded: true,
+        rotation: 0
+    };
+
+    let obstacles = [];
+    let fishes = [];
+    let particles = [];
+    let stars = [];
+    let backgroundMountains = [];
+
+    // Ambient Twinkling Cosmic Stars
+    for (let i = 0; i < 35; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * (groundY - 100),
+            radius: Math.random() * 1.5 + 0.5,
+            blinkSpeed: 0.02 + Math.random() * 0.03,
+            alpha: Math.random()
+        });
+    }
+
+    // Parallax Mountains
+    for(let i=0; i<5; i++) {
+        backgroundMountains.push({
+            x: i * 180,
+            width: 220 + Math.random()*80,
+            height: 90 + Math.random()*70,
+            color: i % 2 === 0 ? '#1e293b' : '#111827'
+        });
+    }
+
+    function triggerJump() {
+        if (penguin.isGrounded && gameRunning) {
+            penguin.vy = penguin.jumpForce;
+            penguin.isGrounded = false;
+            playSound('jump');
+        }
+    }
+
+    window.addEventListener('keydown', e => {
+        if (e.key === ' ' || e.key === 'ArrowUp') { triggerJump(); e.preventDefault(); }
+    });
+    canvas.addEventListener('mousedown', triggerJump);
+    canvas.addEventListener('touchstart', e => { triggerJump(); e.preventDefault(); }, {passive: false});
+
+    function startGame() {
+        initAudio();
+        startScreen.style.display = "none";
+        hud.style.display = "flex";
+        resetGame();
+    }
+
+    function restartGame() {
+        gameOverScreen.style.display = "none";
+        resetGame();
+    }
+
+    function resetGame() {
+        obstacles = [];
+        fishes = [];
+        particles = [];
+        score = 0;
+        gameSpeed = startSpeed;
+        scoreText.innerText = score;
+        
+        penguin.y = groundY - 16;
+        penguin.vy = 0;
+        penguin.isGrounded = true;
+        penguin.rotation = 0;
+        
+        gameRunning = true;
+    }
+
+    function spawnObjects() {
+        let minSpacing = 260 + (gameSpeed * 15); 
+        if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < canvas.width - minSpacing) {
+            
+            let rand = Math.random();
+            let type, width, height;
+            
+            if (rand < 0.25) {
+                type = 'rock'; width = 26; height = 18;
+            } else if (rand < 0.50) {
+                type = 'tree'; width = 22; height = 36;
+            } else if (rand < 0.75) {
+                type = 'snowman'; width = 24; height = 30;
+            } else {
+                type = 'spikes'; width = 35; height = 16;
+            }
+
+            obstacles.push({
+                x: canvas.width + 30,
+                y: groundY,
+                width: width,
+                height: height,
+                type: type,
+                passed: false 
+            });
+
+            if (Math.random() > 0.3) {
+                fishes.push({
+                    x: canvas.width + 40,
+                    y: groundY - 65, 
+                    width: 16,
+                    height: 10,
+                    pulse: Math.random() * 5
+                });
+            }
+        }
+    }
+
+    function createExplosion(x, y, color, count=6) {
+        for(let i=0; i<count; i++) {
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * 3,
+                vy: (Math.random() - 0.5) * 3,
+                radius: Math.random() * 2.5 + 1,
+                alpha: 1,
+                color: color
+            });
+        }
+    }
+
+    function updatePhysics() {
+        gameSpeed += 0.0006; 
+
+        penguin.vy += penguin.gravity;
+        penguin.y += penguin.vy;
+
+        if (penguin.y >= groundY - 16) {
+            penguin.y = groundY - 16;
+            penguin.vy = 0;
+            penguin.isGrounded = true;
+
+            if (Math.random() > 0.45) {
+                particles.push({
+                    x: penguin.x - 10, y: groundY - 2,
+                    vx: -gameSpeed * 0.4 - Math.random(), vy: -Math.random() * 1,
+                    radius: Math.random() * 2 + 0.5, alpha: 0.6, color: '#e2e8f0'
+                });
+            }
+        }
+
+        if (!penguin.isGrounded) {
+            penguin.rotation = Math.min(Math.PI/10, penguin.vy * 0.025);
+        } else {
+            penguin.rotation = Math.sin(Date.now() * 0.01) * 0.02;
+        }
+
+        for(let m of backgroundMountains) {
+            m.x -= gameSpeed * 0.08;
+            if(m.x + m.width < 0) m.x = canvas.width;
+        }
+
+        // Obstacles Handling
+        for (let i = 0; i < obstacles.length; i++) {
+            let o = obstacles[i];
+            o.x -= gameSpeed;
+
+            // Score calculation logic (+5 per avoidance)
+            if (!o.passed && o.x + o.width < penguin.x - penguin.radius) {
+                o.passed = true;
+                score += 5;
+                scoreText.innerText = score;
+                playSound('score5');
+                createExplosion(penguin.x, penguin.y - 10, '#f59e0b', 4);
+            }
+
+            let closestX = Math.max(o.x, Math.min(penguin.x, o.x + o.width));
+            let closestY = Math.max(o.y - o.height, Math.min(penguin.y, o.y));
+            let distance = Math.hypot(penguin.x - closestX, penguin.y - closestY);
+
+            if (distance < penguin.radius - 3) { 
+                gameRunning = false;
+                playSound('hit');
+                createExplosion(penguin.x, penguin.y, '#f87171', 15);
+                triggerGameOver();
+            }
+
+            if (o.x + o.width < 0) {
+                obstacles.splice(i, 1);
+                i--;
+            }
+        }
+
+        // Fish Collections (+1 Point)
+        for (let i = 0; i < fishes.length; i++) {
+            let f = fishes[i];
+            f.x -= gameSpeed;
+            f.pulse += 0.08;
+
+            if (Math.hypot(penguin.x - f.x, penguin.y - f.y) < penguin.radius + 12) {
+                score += 1;
+                scoreText.innerText = score;
+                playSound('fish');
+                createExplosion(f.x, f.y, '#38bdf8', 10);
+                fishes.splice(i, 1);
+                i--;
+                continue;
+            }
+
+            if (f.x + 20 < 0) {
+                fishes.splice(i, 1);
+                i--;
+            }
+        }
+
+        for(let i=0; i<particles.length; i++) {
+            let p = particles[i];
+            p.x += p.vx; p.y += p.vy;
+            p.alpha -= 0.03;
+            if(p.alpha <= 0) { particles.splice(i,1); i--; }
+        }
+    }
+
+    function triggerGameOver() {
+        finalScoreText.innerText = score;
+        if (score > localHighScore) {
+            localHighScore = score;
+            localStorage.setItem("penguin_deluxe_highscore", score);
+            bestScoreText.innerText = score;
+        }
+        gameOverScreen.style.display = "flex";
+    }
+
+    function draw() {
+        let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        skyGrad.addColorStop(0, '#020617');
+        skyGrad.addColorStop(0.5, '#0b1329');
+        skyGrad.addColorStop(1, '#1e1b4b');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (let s of stars) {
+            s.alpha += s.blinkSpeed;
+            if (s.alpha > 1 || s.alpha < 0.1) s.blinkSpeed = -s.blinkSpeed;
+            ctx.fillStyle = `rgba(255, 255, 255, ${Math.abs(s.alpha)})`;
+            ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2); ctx.fill();
+        }
+
+        for(let m of backgroundMountains) {
+            ctx.fillStyle = m.color;
+            ctx.beginPath();
+            ctx.moveTo(m.x, groundY); ctx.lineTo(m.x + m.width/2, groundY - m.height); ctx.lineTo(m.x + m.width, groundY);
+            ctx.closePath(); ctx.fill();
+        }
+
+        let groundGrad = ctx.createLinearGradient(0, groundY, 0, canvas.height);
+        groundGrad.addColorStop(0, '#f1f5f9');
+        groundGrad.addColorStop(1, '#94a3b8');
+        ctx.fillStyle = groundGrad;
+        ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+        
+        ctx.fillStyle = '#cbd5e1'; ctx.fillRect(0, groundY, canvas.width, 3);
+
+        if (gameRunning) {
+            spawnObjects();
+            updatePhysics();
+        }
+
+        for (let f of fishes) {
+            ctx.save();
+            ctx.fillStyle = '#38bdf8';
+            ctx.shadowBlur = 10; ctx.shadowColor = '#00d2ff';
+            ctx.translate(f.x, f.y + Math.sin(f.pulse)*3);
+            ctx.beginPath(); ctx.ellipse(0, 0, 9, 5, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(-12, -4); ctx.lineTo(-12, 4); ctx.closePath(); ctx.fill();
+            ctx.restore();
+        }
+
+        // Draw Variative Obstacles
+        for (let o of obstacles) {
+            ctx.save();
+            if (o.type === 'rock') {
+                ctx.fillStyle = '#475569';
+                ctx.beginPath();
+                ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + o.width/2, o.y - o.height); ctx.lineTo(o.x + o.width, o.y);
+                ctx.closePath(); ctx.fill();
+            } else if (o.type === 'tree') {
+                ctx.fillStyle = '#78350f'; 
+                ctx.fillRect(o.x + o.width/2 - 2, o.y - 6, 4, 6);
+                ctx.fillStyle = '#065f46'; 
+                ctx.beginPath();
+                ctx.moveTo(o.x, o.y - 6); ctx.lineTo(o.x + o.width/2, o.y - o.height); ctx.lineTo(o.x + o.width, o.y - 6);
+                ctx.closePath(); ctx.fill();
+            } else if (o.type === 'snowman') {
+                ctx.fillStyle = '#cbd5e1';
+                ctx.beginPath(); ctx.arc(o.x + o.width/2, o.y - 8, 8, 0, Math.PI*2); ctx.fill(); 
+                ctx.beginPath(); ctx.arc(o.x + o.width/2, o.y - 20, 6, 0, Math.PI*2); ctx.fill(); 
+                ctx.fillStyle = '#ff0000'; 
+                ctx.fillRect(o.x + o.width/2 - 5, o.y - 29, 10, 4);
+            } else if (o.type === 'spikes') {
+                ctx.fillStyle = '#93c5fd';
+                ctx.beginPath();
+                ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + 8, o.y - o.height); ctx.lineTo(o.x + 16, o.y);
+                ctx.moveTo(o.x + 12, o.y); ctx.lineTo(o.x + 20, o.y - o.height * 0.8); ctx.lineTo(o.x + 28, o.y);
+                ctx.moveTo(o.x + 22, o.y); ctx.lineTo(o.x + 29, o.y - o.height * 1.1); ctx.lineTo(o.x + o.width, o.y);
+                ctx.closePath(); ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        for(let p of particles) {
+            ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fill(); ctx.restore();
+        }
+
+        // Draw Character 🐧
+        ctx.save();
+        ctx.translate(penguin.x, penguin.y);
+        ctx.rotate(penguin.rotation);
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.15)';
+        ctx.beginPath(); ctx.ellipse(0, 16, 13, 3, 0, 0, Math.PI*2); ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath(); ctx.arc(0, 0, penguin.radius, 0, Math.PI*2); ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(4, 2, penguin.radius * 0.72, 0, Math.PI*2); ctx.fill();
+
+        ctx.fillStyle = '#fda4af'; ctx.beginPath(); ctx.arc(9, 1, 3, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#000000'; ctx.beginPath(); ctx.arc(11, -4, 2, 0, Math.PI*2); ctx.fill();
+
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath(); ctx.moveTo(14, -3); ctx.lineTo(20, 0); ctx.lineTo(14, 3); ctx.closePath(); ctx.fill();
+
+        ctx.fillStyle = '#1e293b';
+        ctx.save(); ctx.translate(-4, 0);
+        if (!penguin.isGrounded) {
+            ctx.rotate(Math.sin(Date.now() * 0.04) * 0.5 - 0.4); 
+        } else {
+            ctx.rotate(0.2); 
+        }
+        ctx.fillRect(0, -2, 4, 10); ctx.restore();
+
+        ctx.fillStyle = '#eab308'; ctx.fillRect(-7, 14, 5, 3); ctx.fillRect(2, 14, 5, 3);
+        ctx.restore();
+
+        requestAnimationFrame(draw);
+    }
+
+    draw();
+</script>
+
+</body>
+</html>
