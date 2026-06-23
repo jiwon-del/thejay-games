@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snowball Dodge - Cozy Sound Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background: #090d16;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            color: #f8fafc;
+        }
+        #gameContainer {
+            position: relative;
+            width: 450px;
+            height: 650px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 4px solid #cbd5e1;
+            background: #0f172a;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Screens and UI Layout */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            text-align: center;
+            backdrop-filter: blur(6px);
+            z-index: 10;
+        }
+        
+        #startScreen {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(17, 24, 39, 0.95));
+            gap: 15px;
+        }
+        
+        #gameOverScreen {
+            background: rgba(11, 15, 26, 0.9);
+            display: none;
+        }
+
+        h1 {
+            font-size: 40px;
+            font-weight: 900;
+            margin-bottom: 2px;
+            color: #ffffff;
+            text-shadow: 0 0 20px rgba(56, 189, 248, 0.6), 0 4px 10px rgba(0,0,0,0.5);
+            letter-spacing: 1px;
+            line-height: 1;
+        }
+        .subtitle {
+            font-size: 11px;
+            color: #38bdf8;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .menu-stats {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 24px;
+            border-radius: 50px;
+            font-size: 14px;
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 10px;
+        }
+        .menu-stats strong { color: #f59e0b; }
+        
+        .btn {
+            width: 240px;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 50px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(90deg, #00d2ff, #0066ff);
+            color: white;
+            border: 2px solid #e0f2fe;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 25px rgba(0, 102, 255, 0.6);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            margin-top: 5px;
+        }
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.18);
+            color: white;
+        }
+        
+        /* Integrated Instructions Card */
+        .ins-container {
+            width: 100%;
+            max-width: 360px;
+            margin-top: 15px;
+        }
+        .ins-heading {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            font-weight: 800;
+        }
+        .ins-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 15px;
+            text-align: left;
+        }
+        .ins-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 12.5px;
+            line-height: 1.3;
+            color: #cbd5e1;
+        }
+        .ins-item:last-child { margin-bottom: 0; }
+        .ins-icon {
+            font-size: 18px;
+            margin-right: 12px;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        /* HUD Layer */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 15px;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+            z-index: 5;
+            display: none;
+        }
+        .hud-box {
+            background: rgba(15, 23, 42, 0.6);
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        #scoreValue { color: #38bdf8; font-size: 17px; }
+        #levelValue { color: #a855f7; }
+        #shieldStatus { color: #f59e0b; font-size: 13px; margin-left: 4px; font-weight: normal; }
+        
+        #gameNotice {
+            position: absolute;
+            top: 40%;
+            width: 100%;
+            text-align: center;
+            font-size: 32px;
+            font-weight: 900;
+            color: #a855f7;
+            text-shadow: 0 0 20px rgba(168, 85, 247, 0.8), 0 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+            z-index: 4;
+            display: none;
+            transform: scale(0.5);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .go-title {
+            color: #ef4444 !important;
+            text-shadow: 0 0 20px rgba(239, 68, 68, 0.6) !important;
+        }
+        .final-score-box {
+            font-size: 18px;
+            margin: 10px 0 20px 0;
+            color: #94a3b8;
+        }
+        .final-score-box strong {
+            color: #38bdf8;
+            font-size: 42px;
+            display: block;
+            margin-top: 2px;
+        }
+        .new-high-score {
+            color: #f59e0b;
+            font-size: 13px;
+            font-weight: 800;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            animation: pulse 1s infinite alternate;
+            display: none;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(1.04); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <div id="hud">
+        <div class="hud-box">❄️ Score: <span id="scoreValue">0</span></div>
+        <div class="hud-box">⭐ Level: <span id="levelValue">1</span> <span id="shieldStatus"></span></div>
+    </div>
+
+    <div id="gameNotice">LEVEL UP!</div>
+
+    <canvas id="gameCanvas" width="450" height="650"></canvas>
+    
+    <!-- Cleaned & Balanced Front Menu Screen -->
+    <div id="startScreen" class="screen">
+        <div>
+            <h1>SNOWBALL</h1>
+            <h1>DODGE</h1>
+            <div class="subtitle">Gentle Breeze Edition</div>
+        </div>
+        
+        <div class="menu-stats">🏆 High Score: <strong id="menuHighScore">0</strong></div>
+        
+        <button class="btn btn-primary" onclick="startGame()">Start Game</button>
+        
+        <div class="ins-container">
+            <div class="ins-heading">Controls & Features</div>
+            <div class="ins-card">
+                <div class="ins-item">
+                    <div class="ins-icon">🖱️ / 📱</div>
+                    <div><strong>Mouse / Touch:</strong> Move left or right to guide the Snowman smoothly.</div>
+                </div>
+                <div class="ins-item">
+                    <div class="ins-icon">⌨️</div>
+                    <div><strong>Keyboard:</strong> Use <strong>Arrow keys</strong> or <strong>A / D</strong>.</div>
+                </div>
+                <div class="ins-item">
+                    <div class="ins-icon">🛡️</div>
+                    <div><strong>Gold Stars:</strong> Grants a magical dome that blocks 1 hit.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen" class="screen">
+        <h1 class="go-title">GAME OVER</h1>
+        <div class="subtitle" style="color: #f87171;">Your snowman shattered!</div>
+        <div class="final-score-box">
+            Your Final Score:
+            <strong id="finalScore">0</strong>
+            <div id="newHighScoreLabel" class="new-high-score">🎉 NEW RECORD! 🎉</div>
+        </div>
+        <div class="menu-stats" style="margin-bottom: 20px;">🏆 High Score: <span id="goHighScore">0</span></div>
+        <button class="btn btn-primary" onclick="restartGame()">Play Again</button>
+        <button class="btn btn-secondary" onclick="backToMenu()">Main Menu</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    
+    // UI Elements
+    const startScreen = document.getElementById("startScreen");
+    const gameOverScreen = document.getElementById("gameOverScreen");
+    const hud = document.getElementById("hud");
+    const scoreValue = document.getElementById("scoreValue");
+    const levelValue = document.getElementById("levelValue");
+    const shieldStatus = document.getElementById("shieldStatus");
+    const finalScore = document.getElementById("finalScore");
+    const newHighScoreLabel = document.getElementById("newHighScoreLabel");
+    const menuHighScore = document.getElementById("menuHighScore");
+    const goHighScore = document.getElementById("goHighScore");
+    const gameNotice = document.getElementById("gameNotice");
+
+    // Game variables
+    let gameRunning = false;
+    let score = 0;
+    let level = 1;
+    let spawnRate = 35; 
+    let spawnCounter = 0;
+    let highScore = localStorage.getItem("snowball_highscore") || 0;
+    
+    // Audio Synth Engine (Web Audio API)
+    let audioCtx = null;
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    // Sound 1: Soft procedural crisp snow breaking/landing sound
+    function playSnowCrunchSound() {
+        if (!audioCtx) return;
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.1);
+        
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    // Sound 2: Magic star chime melody
+    function playPowerupSound() {
+        if (!audioCtx) return;
+        let now = audioCtx.currentTime;
+        [440, 554, 659, 880].forEach((freq, index) => {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + index * 0.06);
+            gain.gain.setValueAtTime(0.1, now + index * 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + index * 0.06 + 0.2);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + index * 0.06);
+            osc.stop(now + index * 0.06 + 0.2);
+        });
+    }
+
+    // Sound 3: Level Up celebratory ding
+    function playLevelUpSound() {
+        if (!audioCtx) return;
+        let now = audioCtx.currentTime;
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, now); // C5
+        osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(now + 0.4);
+    }
+
+    // Sound 4: Heavy breaking thud (Game Over)
+    function playGameOverSound() {
+        if (!audioCtx) return;
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(30, audioCtx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.4);
+    }
+
+    // Snowman Player Definition
+    const player = {
+        x: canvas.width / 2,
+        y: canvas.height - 65,
+        radius: 18,
+        width: 36,
+        height: 55,
+        speed: 9, 
+        targetX: canvas.width / 2,
+        hasShield: false
+    };
+
+    let snowballs = [];
+    let powerups = [];
+    let particles = [];
+    let backgroundSnow = [];
+    let keys = { ArrowLeft: false, ArrowRight: false, a: false, d: false };
+
+    menuHighScore.innerText = highScore;
+
+    // Ambient floating snow decoration
+    for (let i = 0; i < 40; i++) {
+        backgroundSnow.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            radius: Math.random() * 2 + 0.5,
+            density: Math.random() * 0.5 + 0.2,
+            opacity: Math.random() * 0.4 + 0.2
+        });
+    }
+
+    window.addEventListener('keydown', e => { if(e.key in keys) keys[e.key] = true; });
+    window.addEventListener('keyup', e => { if(e.key in keys) keys[e.key] = false; });
+    
+    canvas.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        player.targetX = e.clientX - rect.left;
+    });
+
+    canvas.addEventListener('touchmove', e => {
+        const rect = canvas.getBoundingClientRect();
+        if(e.touches.length > 0) {
+            player.targetX = e.touches[0].clientX - rect.left;
+        }
+        e.preventDefault();
+    }, { passive: false });
+
+    function startGame() {
+        initAudio(); // Triggers browser audio unlock
+        startScreen.style.display = "none";
+        hud.style.display = "flex";
+        initGame();
+    }
+
+    function restartGame() {
+        gameOverScreen.style.display = "none";
+        initGame();
+    }
+
+    function backToMenu() {
+        highScore = localStorage.getItem("snowball_highscore") || 0;
+        menuHighScore.innerText = highScore;
+        gameOverScreen.style.display = "none";
+        hud.style.display = "none";
+        startScreen.style.display = "flex";
+    }
+
+    function initGame() {
+        snowballs = [];
+        powerups = [];
+        particles = [];
+        score = 0;
+        level = 1;
+        spawnRate = 35; 
+        spawnCounter = 0;
+        player.hasShield = false;
+        
+        scoreValue.innerText = "0";
+        levelValue.innerText = "1";
+        shieldStatus.innerText = "";
+        
+        player.x = canvas.width / 2;
+        player.targetX = canvas.width / 2;
+        gameRunning = true;
+    }
+
+    function createExplosion(x, y, color, count) {
+        for (let i = 0; i < count; i++) {
+            particles.push({
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 4,
+                vy: (Math.random() - 0.6) * 3,
+                radius: Math.random() * 2.5 + 1,
+                alpha: 1,
+                decay: Math.random() * 0.03 + 0.015,
+                color: color
+            });
+        }
+    }
+
+    function spawnObjects() {
+        spawnCounter++;
+        if (spawnCounter >= spawnRate) {
+            spawnCounter = 0;
+            
+            const radius = Math.random() * 14 + 7; 
+            const x = Math.random() * (canvas.width - radius * 2) + radius;
+            const speedModifier = Math.min(level * 0.6, 4);
+            const speed = Math.random() * 1.5 + 1.5 + speedModifier; 
+            
+            snowballs.push({
+                x: x,
+                y: -radius,
+                radius: radius,
+                speed: speed,
+                wobbleSpeed: Math.random() * 0.02
+            });
+
+            if (Math.random() < 0.10 && powerups.length < 1 && !player.hasShield) {
+                const px = Math.random() * (canvas.width - 30) + 15;
+                powerups.push({
+                    x: px,
+                    y: -15,
+                    radius: 11,
+                    speed: 2,
+                    pulse: 0
+                });
+            }
+        }
+    }
+
+    function checkCircleCollision(x1, y1, r1, x2, y2, r2) {
+        return Math.hypot(x1 - x2, y1 - y2) < (r1 + r2);
+    }
+
+    function processCollisions() {
+        const bodyX = player.x, bodyY = player.y + 15, bodyR = 18;
+        const headX = player.x, headY = player.y - 12, headR = 12;
+
+        for (let i = 0; i < powerups.length; i++) {
+            let p = powerups[i];
+            p.y += p.speed;
+            p.pulse += 0.08;
+
+            if (checkCircleCollision(p.x, p.y, p.radius, bodyX, bodyY, bodyR) || 
+                checkCircleCollision(p.x, p.y, p.radius, headX, headY, headR)) {
+                
+                player.hasShield = true;
+                shieldStatus.innerText = "🛡️ (Shield ON)";
+                playPowerupSound(); // Play Audio
+                createExplosion(p.x, p.y, '#f59e0b', 12);
+                powerups.splice(i, 1);
+                i--;
+                continue;
+            }
+
+            if (p.y > canvas.height + 20) {
+                powerups.splice(i, 1);
+                i--;
+            }
+        }
+
+        for (let i = 0; i < snowballs.length; i++) {
+            let b = snowballs[i];
+            b.y += b.speed;
+            b.x += Math.sin(b.y * b.wobbleSpeed) * 0.3;
+
+            let hitPlayer = checkCircleCollision(b.x, b.y, b.radius, bodyX, bodyY, bodyR) || 
+                            checkCircleCollision(b.x, b.y, b.radius, headX, headY, headR);
+
+            if (hitPlayer) {
+                if (player.hasShield) {
+                    player.hasShield = false;
+                    shieldStatus.innerText = "";
+                    playGameOverSound(); // Shield break thud
+                    createExplosion(b.x, b.y, '#38bdf8', 20);
+                    snowballs.splice(i, 1);
+                    i--;
+                    continue;
+                } else {
+                    gameRunning = false;
+                    playGameOverSound(); // Game Over break thud
+                    triggerGameOver();
+                    return;
+                }
+            }
+
+            if (b.y > canvas.height - 30) {
+                playSnowCrunchSound(); // Play dynamic snow splash crunch
+                createExplosion(b.x, canvas.height - 35, '#e2e8f0', 5);
+                snowballs.splice(i, 1);
+                i--;
+                score++;
+                scoreValue.innerText = score;
+
+                if (score % 20 === 0) {
+                    level++;
+                    levelValue.innerText = level;
+                    playLevelUpSound(); // Play Audio
+                    triggerLevelUpNotice();
+                    spawnRate = Math.max(15, 35 - (level * 2)); 
+                }
+            }
+        }
+    }
+
+    function triggerLevelUpNotice() {
+        gameNotice.style.display = "block";
+        gameNotice.style.transform = "scale(1.2)";
+        setTimeout(() => {
+            gameNotice.style.transform = "scale(0.5)";
+            setTimeout(() => { gameNotice.style.display = "none"; }, 150);
+        }, 800);
+    }
+
+    function triggerGameOver() {
+        finalScore.innerText = score;
+        let isNewRecord = false;
+        
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem("snowball_highscore", score);
+            isNewRecord = true;
+        }
+        
+        newHighScoreLabel.style.display = isNewRecord ? "block" : "none";
+        goHighScore.innerText = highScore;
+        gameOverScreen.style.display = "flex";
+    }
+
+    function animate() {
+        let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        if (level === 1) {
+            gradient.addColorStop(0, '#0f172a'); gradient.addColorStop(1, '#60a5fa');
+        } else if (level === 2) {
+            gradient.addColorStop(0, '#0b0f19'); gradient.addColorStop(1, '#3b82f6');
+        } else {
+            gradient.addColorStop(0, '#020617'); gradient.addColorStop(1, '#1d4ed8');
+        }
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < backgroundSnow.length; i++) {
+            let p = backgroundSnow[i];
+            ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            p.y += p.density; 
+            p.x += Math.sin(p.y / 25) * 0.3;
+            
+            if (p.y > canvas.height) {
+                backgroundSnow[i] = {
+                    x: Math.random() * canvas.width, y: -10,
+                    radius: p.radius, density: p.density, opacity: p.opacity
+                };
+            }
+        }
+
+        ctx.fillStyle = '#f8fafc';
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height);
+        ctx.lineTo(0, canvas.height - 35);
+        ctx.quadraticCurveTo(canvas.width / 4, canvas.height - 45, canvas.width / 2, canvas.height - 35);
+        ctx.quadraticCurveTo(canvas.width * 3 / 4, canvas.height - 25, canvas.width, canvas.height - 40);
+        ctx.lineTo(canvas.width, canvas.height);
+        ctx.fill();
+
+        if (gameRunning) {
+            if (keys.ArrowLeft || keys.a) {
+                player.x -= player.speed; player.targetX = player.x;
+            } else if (keys.ArrowRight || keys.d) {
+                player.x += player.speed; player.targetX = player.x;
+            } else {
+                player.x += (player.targetX - player.x) * 0.25;
+            }
+
+            if (player.x < player.width/2) player.x = player.width/2;
+            if (player.x > canvas.width - player.width/2) player.x = canvas.width - player.width/2;
+
+            spawnObjects();
+            processCollisions();
+        }
+
+        for (let p of powerups) {
+            ctx.save();
+            ctx.shadowBlur = 12 + Math.sin(p.pulse) * 4;
+            ctx.shadowColor = '#f59e0b';
+            ctx.fillStyle = '#f59e0b';
+            
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius + Math.sin(p.pulse)*1.5, 0, Math.PI*2);
+            ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius - 2, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        for (let b of snowballs) {
+            ctx.save();
+            let ballGrad = ctx.createRadialGradient(b.x - b.radius*0.3, b.y - b.radius*0.3, b.radius * 0.1, b.x, b.y, b.radius);
+            ballGrad.addColorStop(0, '#ffffff');
+            ballGrad.addColorStop(0.7, '#e2e8f0');
+            ballGrad.addColorStop(1, '#93c5fd');
+            
+            ctx.fillStyle = ballGrad;
+            ctx.shadowBlur = 5;
+            ctx.shadowColor = 'rgba(147, 197, 253, 0.3)';
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        for (let i = 0; i < particles.length; i++) {
+            let pt = particles[i];
+            pt.x += pt.vx;
+            pt.y += pt.vy;
+            pt.alpha -= pt.decay;
+
+            if (pt.alpha <= 0) {
+                particles.splice(i, 1);
+                i--;
+                continue;
+            }
+
+            ctx.save();
+            ctx.globalAlpha = pt.alpha;
+            ctx.fillStyle = pt.color;
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        ctx.save();
+        
+        if (player.hasShield) {
+            ctx.save();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 3;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#00d2ff';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y + 4, 38, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+            ctx.fill();
+            ctx.restore();
+        }
+
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(255,255,255,0.3)';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y + 15, 18, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#334155';
+        ctx.beginPath(); ctx.arc(player.x, player.y + 10, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(player.x, player.y + 20, 2.5, 0, Math.PI * 2); ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y - 12, 12, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath(); ctx.arc(player.x - 4, player.y - 15, 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(player.x + 4, player.y - 15, 1.5, 0, Math.PI * 2); ctx.fill();
+
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y - 12);
+        ctx.lineTo(player.x + 11, player.y - 10);
+        ctx.lineTo(player.x, player.y - 8);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.roundRect(player.x - 10, player.y - 2, 20, 5, 3);
+        ctx.fill();
+        ctx.fillRect(player.x + 3, player.y + 3, 5, 12);
+
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(player.x - 14, player.y - 24, 28, 3); 
+        ctx.fillRect(player.x - 9, player.y - 36, 18, 12); 
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(player.x - 9, player.y - 27, 18, 3);
+
+        ctx.restore();
+
+        requestAnimationFrame(animate);
+    }
+
+    animate();
+</script>
+
+</body>
+</html>
