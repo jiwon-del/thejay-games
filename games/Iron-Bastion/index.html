@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>Iron Bastion</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif; user-select: none; -webkit-user-select: none;}
+body{background:#111;overflow:hidden; touch-action: none;}
+canvas{display:block;background:#1a1a1a}
+
+.screen{
+position:absolute;
+inset:0;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+color:white;
+background:rgba(0,0,0,.9);
+text-align:center;
+padding:20px;
+z-index: 200;
+}
+
+button{
+padding:12px 25px;
+margin:10px;
+border:none;
+border-radius:8px;
+cursor:pointer;
+font-size:18px;
+}
+
+h1{margin-bottom:15px}
+p{max-width:700px;line-height:1.6}
+
+#hud{
+position:absolute;
+top:10px;
+left:10px;
+display:flex;
+gap:12px;
+z-index:100;
+}
+
+.hudBox{
+background:rgba(0,0,0,.6);
+backdrop-filter:blur(4px);
+padding:10px 14px;
+border:2px solid #444;
+border-radius:12px;
+color:white;
+min-width:100px;
+}
+
+.hudBox span{
+display:block;
+font-size:13px;
+opacity:.8;
+margin-bottom:5px;
+}
+
+#hpBar{
+width:100px;
+height:12px;
+background:#333;
+border-radius:20px;
+overflow:hidden;
+}
+
+#hpFill{
+width:100%;
+height:100%;
+background:lime;
+transition:.2s;
+}
+
+.screen h1{
+font-size:40px;
+margin-bottom:10px;
+letter-spacing:3px;
+text-shadow:0 0 15px #00ff88;
+}
+
+.subtitle{
+font-size:16px;
+opacity:.85;
+margin-bottom:25px;
+max-width:500px;
+}
+
+.howToBox{
+background:rgba(255,255,255,.08);
+border:1px solid rgba(255,255,255,.2);
+border-radius:15px;
+padding:15px;
+margin-bottom:25px;
+width:320px;
+font-size: 14px;
+}
+
+.howToBox h2{
+margin-bottom:10px;
+color:#00ff88;
+}
+
+.howToBox p{
+margin:5px 0;
+}
+
+.screen button{
+padding:14px 35px;
+font-size:20px;
+font-weight:bold;
+border:none;
+border-radius:12px;
+background:#00ff88;
+cursor:pointer;
+transition:.25s;
+}
+</style>
+</head>
+<body>
+
+<div id="menu" class="screen">
+    <h1>Iron Bastion</h1>
+    <p class="subtitle">Survive endless waves of enemy drones and protect your tank.</p>
+    <div class="howToBox">
+        <h2>HOW TO PLAY</h2>
+        <p>⚡ <b>TANK MOVES AUTOMATICALLY!</b></p>
+        <p><b>PC:</b> Move <b>Mouse</b> to steer | Left Click to shoot</p>
+        <p><b>MOBILE:</b> Touch & Drag on screen to steer + auto-shoot</p>
+    </div>
+    <button onclick="startGame()">START GAME</button>
+</div>
+
+<div id="hud">
+    <div class="hudBox">
+        <span>❤️ HP</span>
+        <div id="hpBar">
+            <div id="hpFill"></div>
+        </div>
+    </div>
+    <div class="hudBox">
+        <span>🎯 Score</span>
+        <div id="scoreText">0</div>
+    </div>
+    <div class="hudBox">
+        <span>💥 Shots</span>
+        <div id="shotsText">0</div>
+    </div>
+</div>
+
+<canvas id="game"></canvas>
+
+<div id="gameover" class="screen" style="display:none;">
+    <h1>GAME OVER</h1>
+    <p id="finalScore">Score: 0</p>
+    <button onclick="restartGame()">PLAY AGAIN</button>
+</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+canvas.width=innerWidth;
+canvas.height=innerHeight;
+
+let player,zombies,bullets,score,hp,gameRunning;
+let shots=0;
+
+let lastTime = 0;
+
+let targetX=0;
+let targetY=0;
+let isTouching = false; 
+let isMobile = false;
+
+let lastShotTime = 0;
+const SHOT_COOLDOWN = 200; 
+
+if('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+    isMobile = true;
+}
+
+canvas.addEventListener("mousemove",(e)=>{
+    if(isMobile) return;
+    targetX=e.clientX;
+    targetY=e.clientY;
+});
+canvas.addEventListener("click",e=>{
+    if(!gameRunning || isMobile) return; 
+    const now = performance.now();
+    if(now - lastShotTime >= SHOT_COOLDOWN) {
+        fireBullet();
+        lastShotTime = now;
+    }
+});
+
+window.addEventListener("touchstart", e => {
+    if(!gameRunning) return;
+    isTouching = true;
+    const touch = e.touches[0];
+    targetX = touch.clientX;
+    targetY = touch.clientY;
+});
+
+window.addEventListener("touchmove", e => {
+    if(!gameRunning) return;
+    const touch = e.touches[0];
+    targetX = touch.clientX;
+    targetY = touch.clientY;
+});
+
+window.addEventListener("touchend", () => {
+    isTouching = false;
+});
+
+function fireBullet() {
+    const dx=targetX-player.x;
+    const dy=targetY-player.y;
+    const angle=Math.atan2(dy,dx);
+
+    shots++;
+    bullets.push({
+        x:player.x + Math.cos(angle)*30,
+        y:player.y + Math.sin(angle)*30,
+        vx:Math.cos(angle)*8,
+        vy:Math.sin(angle)*8,
+        r:5
+    });
+}
+
+window.addEventListener("resize",()=>{
+    canvas.width=innerWidth;
+    canvas.height=innerHeight;
+});
+
+function initGame(){
+    player={x:canvas.width/2,y:canvas.height/2,size:20,speed:150}; 
+    zombies=[];
+    bullets=[];
+    score=0;
+    hp=100;
+    shots=0;
+    gameRunning=true;
+    targetX = player.x + 1;
+    targetY = player.y;
+    lastTime = performance.now();
+    lastShotTime = 0;
+}
+
+function spawnZombie(){
+    zombies.push({
+        x:Math.random()<0.5?0:canvas.width,
+        y:Math.random()*canvas.height,
+        size:18,
+        speed:60 + Math.random()*60 
+    });
+}
+
+setInterval(()=>{
+    if(gameRunning)spawnZombie();
+},1000);
+
+function update(dt){
+    const dx = targetX - player.x;
+    const dy = targetY - player.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist > 5) {
+        player.x += (dx / dist) * player.speed * dt;
+        player.y += (dy / dist) * player.speed * dt;
+    }
+
+    if(isMobile && isTouching) {
+        const now = performance.now();
+        if(now - lastShotTime >= SHOT_COOLDOWN) {
+            fireBullet();
+            lastShotTime = now; 
+        }
+    }
+
+    player.x=Math.max(player.size,Math.min(canvas.width-player.size,player.x));
+    player.y=Math.max(player.size,Math.min(canvas.height-player.size,player.y));
+
+    for(let i=bullets.length-1;i>=0;i--){
+        let b=bullets[i];
+        b.x += b.vx * 60 * dt; 
+        b.y += b.vy * 60 * dt;
+        if(b.x<0||b.x>canvas.width||b.y<0||b.y>canvas.height){
+            bullets.splice(i,1);
+        }
+    }
+
+    for(let zi=zombies.length-1;zi>=0;zi--){
+        let z=zombies[zi];
+        const mDx=player.x-z.x;
+        const mDy=player.y-z.y;
+        const mDist=Math.hypot(mDx,mDy);
+
+        z.x += (mDx / mDist) * z.speed * dt;
+        z.y += (mDy / mDist) * z.speed * dt;
+
+        if(mDist<z.size+player.size){
+            hp -= 10;
+            zombies.splice(zi,1);
+            continue;
+        }
+
+        for(let bi=bullets.length-1;bi>=0;bi--){
+            let b=bullets[bi];
+            const hit=Math.hypot(b.x-z.x,b.y-z.y);
+            if(hit<z.size+b.r){
+                zombies.splice(zi,1);
+                bullets.splice(bi,1);
+                score += 5;
+                break;
+            }
+        }
+    }
+
+    if(hp<=0) gameOver();
+
+    document.getElementById("hpFill").style.width=hp+"%";
+    document.getElementById("scoreText").innerText=score;
+    document.getElementById("shotsText").innerText=shots;
+}
+
+function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle="#6b4f2a";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    for(let i=0;i<80;i++){
+        ctx.fillStyle="rgba(0,0,0,0.1)";
+        ctx.beginPath();
+        ctx.arc((i*137)%canvas.width, (i*91)%canvas.height, 15, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    const angle=Math.atan2(targetY-player.y, targetX-player.x);
+    ctx.save();
+    ctx.translate(player.x,player.y);
+    ctx.rotate(angle);
+
+    ctx.fillStyle="#333";
+    ctx.fillRect(-22,-17,44,6);
+    ctx.fillRect(-22,11,44,6);
+    ctx.fillStyle="#2f855a";
+    ctx.fillRect(-20,-15,40,30);
+    ctx.fillStyle="#4ade80";
+    ctx.beginPath();
+    ctx.arc(0,0,12,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle="#666";
+    ctx.fillRect(0,-3,28,6);
+    ctx.restore();
+
+    ctx.fillStyle="yellow";
+    for(const b of bullets){
+        ctx.beginPath();
+        ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+        ctx.fill();
+    }
+
+    for(const z of zombies){
+        ctx.strokeStyle="#888";
+        ctx.lineWidth=2;
+        ctx.beginPath();
+        ctx.moveTo(z.x-18,z.y); ctx.lineTo(z.x-8,z.y);
+        ctx.moveTo(z.x+8,z.y);  ctx.lineTo(z.x+18,z.y);
+        ctx.moveTo(z.x,z.y-18); ctx.lineTo(z.x,z.y-8);
+        ctx.moveTo(z.x,z.y+8);  ctx.lineTo(z.x,z.y+18);
+        ctx.stroke();
+
+        ctx.fillStyle="#555";
+        ctx.fillRect(z.x-8,z.y-8,16,16);
+        ctx.fillStyle="red";
+        ctx.beginPath();
+        ctx.arc(z.x,z.y,3,0,Math.PI*2);
+        ctx.fill();
+    }
+}
+
+function loop(timestamp){
+    if(!lastTime) lastTime = timestamp;
+    let dt = (timestamp - lastTime) / 1000;
+    if (dt > 0.1) dt = 0.1; 
+    lastTime = timestamp;
+
+    if(gameRunning){
+        update(dt);
+        draw();
+    }
+    requestAnimationFrame(loop);
+}
+
+requestAnimationFrame((timestamp) => {
+    lastTime = timestamp;
+    loop(timestamp);
+});
+
+function startGame(){
+    document.getElementById("menu").style.display="none";
+    document.getElementById("gameover").style.display="none";
+    initGame();
+}
+
+function restartGame(){
+    document.getElementById("gameover").style.display="none";
+    initGame();
+}
+
+function gameOver(){
+    gameRunning=false;
+    document.getElementById("finalScore").innerText = "Score: " + score;
+    document.getElementById("gameover").style.display="flex";
+}
+</script>
+</body>
+</html>
